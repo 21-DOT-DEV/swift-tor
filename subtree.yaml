@@ -1,2 +1,8 @@
 # Managed by subtree CLI - https://github.com/21-DOT-DEV/subtree
-subtrees: []
+subtrees:
+- name: tor
+  remote: https://gitlab.torproject.org/tpo/core/tor.git
+  prefix: Vendor/tor
+  commit: 7cd3905074a69f53d252d74bdda9a55b858523b7
+  branch: tor-0.4.8.21
+  squash: true
