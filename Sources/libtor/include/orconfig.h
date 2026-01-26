@@ -201,7 +201,14 @@
 #define HAVE_GETDELIM 1
 
 /* Define to 1 if you have the 'getentropy' function. */
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+#if defined(__APPLE__) && (TARGET_OS_IPHONE)
+#undef HAVE_GETENTROPY
+#else
 #define HAVE_GETENTROPY 1
+#endif
 
 /* Define this if you have any gethostbyname_r() */
 /* #undef HAVE_GETHOSTBYNAME_R */
@@ -591,7 +598,14 @@
 /* #undef HAVE_SYS_PRCTL_H */
 
 /* Define to 1 if you have the <sys/random.h> header file. */
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+#if defined(__APPLE__) && (TARGET_OS_IPHONE)
+#undef HAVE_SYS_RANDOM_H
+#else
 #define HAVE_SYS_RANDOM_H 1
+#endif
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1

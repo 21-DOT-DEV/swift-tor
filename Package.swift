@@ -6,10 +6,7 @@ let package = Package(
     name: "swift-tor",
     platforms: [
         .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9),
-        .visionOS(.v1)
+        .iOS(.v16)
     ],
     products: [
         .library(name: "libtor", targets: ["libtor"]),
