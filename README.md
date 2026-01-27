@@ -15,9 +15,10 @@
  
  - **macOS**: 13+
  - **iOS**: 16+
- - **tvOS**: 16+
- - **watchOS**: 9+
- - **visionOS**: 1+
+ - **Linux**: Ubuntu 22.04+ (via Docker)
+ 
+> [!IMPORTANT]  
+> **tvOS/watchOS/visionOS are not supported.** Tor's codebase relies on UNIX process primitives (`fork`, `execve`, `daemon`, `setuid`) that Apple prohibits on these platforms. These restrictions are enforced at the App Store review level and would cause runtime crashes.
  
  ## Installation
  
@@ -65,8 +66,9 @@
  ```
  
  ### Faster bootstraps with `cacheDirectory`
- 
- Reusing a `cacheDirectory` across runs can significantly reduce bootstrap time.
+
+> [!TIP]  
+> Reusing a `cacheDirectory` across runs can significantly reduce bootstrap time.
  
  ```swift
  import Tor
@@ -94,8 +96,11 @@
  ```
  
  ### Apple-only: URLSession via Tor
- 
- ```swift
+
+> [!NOTE]  
+> This helper requires `CFNetwork` and is only available on Apple platforms.
+
+```swift
  #if canImport(CFNetwork)
  let session = try await client.makeURLSession()
  let (data, _) = try await session.data(from: URL(string: "https://check.torproject.org/api/ip")!)
@@ -147,13 +152,13 @@
  
  ## Roadmap
  
- - **Linux support**: planned (not yet supported by the current package manifest/CI)
+ - **Linux support**: ✅ basic support complete (Phase 1)
+ - **Remove libbsd dependency**: planned (Phase 2) — use tor's internal strlcpy/strlcat
  
- ## Security & Privacy Notes
- 
- - Tor can’t “fix” unsafe application behavior. Review the Tor Project guidance on staying anonymous.
- - Avoid logging sensitive information (credentials, onion private keys, etc.).
- - Consider your threat model; Tor integration is only one part of privacy/security.
+ ## Security & Privacy
+
+> [!CAUTION]  
+> Tor can't "fix" unsafe application behavior. Review the [Tor Project guidance](https://support.torproject.org/) on staying anonymous. Avoid logging sensitive information (credentials, onion private keys). Consider your threat model—Tor integration is only one part of privacy/security.
  
  ## License
  

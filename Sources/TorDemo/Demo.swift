@@ -75,7 +75,8 @@ struct TorDemo {
             }
             print()
             
-            // Create a URLSession routed through Tor
+#if canImport(CFNetwork)
+            // Create a URLSession routed through Tor (Apple platforms only)
             let session = try await client.makeURLSession()
             
             // Fetch clearnet URL via Tor
@@ -118,6 +119,12 @@ struct TorDemo {
             }
             
             print()
+#else
+            // On Linux, URLSession SOCKS proxy support requires CFNetwork
+            print("ℹ️  URLSession SOCKS proxy routing requires Apple platforms")
+            print("   Use the SOCKS endpoint directly with your preferred HTTP client")
+            print()
+#endif
             
             // Demo: Create an ephemeral onion service
             print("🧅 Creating ephemeral onion service...")

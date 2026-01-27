@@ -41,9 +41,13 @@ let package = Package(
                 .define("FALLTHROUGH", to: "__attribute__((fallthrough))"),
                 .define("SHARE_DATADIR", to: "\"/usr/local/share\""),
                 .define("LOCALSTATEDIR", to: "\"/usr/local/var\""),
+                // Linux: Enable GNU extensions (memmem, etc.) and force-include BSD string functions
+                .define("_GNU_SOURCE", .when(platforms: [.linux])),
+                .unsafeFlags(["-include", "bsd/string.h"], .when(platforms: [.linux])),
             ],
             linkerSettings: [
-                .linkedLibrary("z") // zlib => -lz
+                .linkedLibrary("z"), // zlib => -lz
+                .linkedLibrary("bsd", .when(platforms: [.linux])), // libbsd for strlcpy/strlcat
             ]
         ),
         .target(

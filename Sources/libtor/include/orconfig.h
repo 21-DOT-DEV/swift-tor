@@ -121,7 +121,11 @@
 #define HAVE_CLOCK_GETTIME 1
 
 /* Define to 1 if you have the <crt_externs.h> header file. */
+#if defined(__linux__)
+#undef HAVE_CRT_EXTERNS_H
+#else
 #define HAVE_CRT_EXTERNS_H 1
+#endif
 
 /* Define to 1 if you have the <crypto_scalarmult_curve25519.h> header file.
    */
@@ -167,7 +171,12 @@
 #define HAVE_EVP_PBE_SCRYPT 1
 
 /* Define to 1 if you have the 'evutil_secure_rng_add_bytes' function. */
+#if defined(__linux__)
+/* swift-event libevent build doesn't expose this on Linux */
+#undef HAVE_EVUTIL_SECURE_RNG_ADD_BYTES
+#else
 #define HAVE_EVUTIL_SECURE_RNG_ADD_BYTES 1
+#endif
 
 /* Define to 1 if you have the 'evutil_secure_rng_set_urandom_device_file'
    function. */
@@ -274,7 +283,11 @@
 #define HAVE_IOCTL 1
 
 /* Define to 1 if you have the 'issetugid' function. */
+#if defined(__linux__)
+#undef HAVE_ISSETUGID
+#else
 #define HAVE_ISSETUGID 1
+#endif
 
 /* Defined if KIST scheduler is supported on this system */
 /* #undef HAVE_KIST_SUPPORT */
@@ -323,10 +336,18 @@
 #define HAVE_MACHINE_LIMITS_H 1
 
 /* Define to 1 if you have the 'mach_approximate_time' function. */
+#if defined(__linux__)
+#undef HAVE_MACH_APPROXIMATE_TIME
+#else
 #define HAVE_MACH_APPROXIMATE_TIME 1
+#endif
 
 /* Define to 1 if you have the <mach/vm_inherit.h> header file. */
+#if defined(__linux__)
+#undef HAVE_MACH_VM_INHERIT_H
+#else
 #define HAVE_MACH_VM_INHERIT_H 1
+#endif
 
 /* Defined if the compiler supports __FUNCTION__ */
 #define HAVE_MACRO__FUNCTION__ 1
@@ -347,7 +368,11 @@
 #define HAVE_MEMMEM 1
 
 /* Define to 1 if you have the 'memset_s' function. */
+#if defined(__linux__)
+#undef HAVE_MEMSET_S
+#else
 #define HAVE_MEMSET_S 1
+#endif
 
 /* Define to 1 if you have the 'minherit' function. */
 #define HAVE_MINHERIT 1
@@ -414,10 +439,18 @@
 #define HAVE_PWD_H 1
 
 /* Define to 1 if you have the 'readpassphrase' function. */
+#if defined(__linux__)
+#undef HAVE_READPASSPHRASE
+#else
 #define HAVE_READPASSPHRASE 1
+#endif
 
 /* Define to 1 if you have the <readpassphrase.h> header file. */
+#if defined(__linux__)
+#undef HAVE_READPASSPHRASE_H
+#else
 #define HAVE_READPASSPHRASE_H 1
+#endif
 
 /* Define to 1 if you have the 'rint' function. */
 #define HAVE_RINT 1
@@ -537,10 +570,18 @@
 #define HAVE_STRUCT_SOCKADDR_IN6 1
 
 /* Define to 1 if 'sin6_len' is a member of 'struct sockaddr_in6'. */
+#if defined(__linux__)
+#undef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
+#else
 #define HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN 1
+#endif
 
 /* Define to 1 if 'sin_len' is a member of 'struct sockaddr_in'. */
+#if defined(__linux__)
+#undef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+#else
 #define HAVE_STRUCT_SOCKADDR_IN_SIN_LEN 1
+#endif
 
 /* Define to 1 if 'get_cipher_by_char' is a member of 'struct ssl_method_st'.
    */
@@ -707,7 +748,11 @@
 /* #undef HAVE_ZSTD_ESTIMATEDCTXSIZE */
 
 /* Define to 1 if you have the '_NSGetEnviron' function. */
+#if defined(__linux__)
+#undef HAVE__NSGETENVIRON
+#else
 #define HAVE__NSGETENVIRON 1
+#endif
 
 /* Define to 1 if you have the '_vscprintf' function. */
 /* #undef HAVE__VSCPRINTF */

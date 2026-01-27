@@ -255,9 +255,14 @@ public final class ControlSocket: @unchecked Sendable {
         var timeout = DWORD(seconds * 1000) // milliseconds
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, Int32(MemoryLayout<DWORD>.size))
         #else
+#if canImport(Glibc)
+        let usec = Int((seconds.truncatingRemainder(dividingBy: 1)) * 1_000_000)
+#else
+        let usec = Int32((seconds.truncatingRemainder(dividingBy: 1)) * 1_000_000)
+#endif
         var tv = timeval(
             tv_sec: Int(seconds),
-            tv_usec: Int32((seconds.truncatingRemainder(dividingBy: 1)) * 1_000_000)
+            tv_usec: usec
         )
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         #endif
@@ -271,7 +276,11 @@ public final class ControlSocket: @unchecked Sendable {
         WSAStartup(MAKEWORD(2, 2), &wsaData)
         #endif
         
+        #if canImport(Glibc)
+        let sock = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+#else
         let sock = socket(AF_INET, SOCK_STREAM, 0)
+#endif
         guard sock >= 0 else {
             throw TorError.ioError("Failed to create socket: \(lastErrorMessage())")
         }

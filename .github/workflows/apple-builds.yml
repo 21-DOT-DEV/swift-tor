@@ -1,0 +1,29 @@
+name: Apple Platforms
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: swift test
+
+  ios:
+    name: iOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for iOS
+        run: |
+          xcrun xcodebuild \
+            -skipPackagePluginValidation \
+            build \
+            -scheme swift-tor-Package \
+            -destination generic/platform=iOS
