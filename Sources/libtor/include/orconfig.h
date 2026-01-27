@@ -171,12 +171,8 @@
 #define HAVE_EVP_PBE_SCRYPT 1
 
 /* Define to 1 if you have the 'evutil_secure_rng_add_bytes' function. */
-#if defined(__linux__)
-/* swift-event libevent build doesn't expose this on Linux */
+/* swift-event libevent build doesn't expose this function */
 #undef HAVE_EVUTIL_SECURE_RNG_ADD_BYTES
-#else
-#define HAVE_EVUTIL_SECURE_RNG_ADD_BYTES 1
-#endif
 
 /* Define to 1 if you have the 'evutil_secure_rng_set_urandom_device_file'
    function. */

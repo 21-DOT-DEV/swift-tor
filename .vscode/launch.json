@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:swift-tor}",
+            "name": "Debug TorDemo",
+            "program": "${workspaceFolder:swift-tor}/.build/debug/TorDemo",
+            "preLaunchTask": "swift: Build Debug TorDemo"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:swift-tor}",
+            "name": "Release TorDemo",
+            "program": "${workspaceFolder:swift-tor}/.build/release/TorDemo",
+            "preLaunchTask": "swift: Build Release TorDemo"
+        }
+    ]
+}
