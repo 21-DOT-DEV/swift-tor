@@ -27,9 +27,10 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 
 | Item | Description | Status |
 |------|-------------|--------|
-| **Linux Basic Support** | Build and test on Linux. Handle platform differences (types, missing functions). Use tor's internal strlcpy/strlcat instead of libbsd. | 🔄 In Progress |
+| **Linux Basic Support** | Build and test on Linux. Handle platform differences (types, missing functions). | ✅ Complete |
 | **Remove libbsd Dependency** | Use `ext/strlcpy.c` and `ext/strlcat.c` from Vendor/tor instead of `-include bsd/string.h`. Cleaner build, fewer dependencies. | 🔜 Planned |
-| **CI Workflows** | Add GitHub Actions for macOS and Linux Docker builds. | 🔜 Planned |
+| **iOS Target Refactor** | Create separate `libtor-ios` target excluding hashx JIT (`compiler_a64.c`). Removes need for `__clear_cache` shim. JIT is non-functional on iOS anyway due to code signing. | 🔜 Planned |
+| **CI Workflows** | Add GitHub Actions for macOS, iOS, and Linux Docker builds. | ✅ Complete |
 
 ---
 
@@ -38,9 +39,10 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | Phase | Name | Status | File |
 |-------|------|--------|------|
 | **0** | Foundation | ✅ Complete | — |
-| **1** | Linux Basic Support | 🔄 In Progress | [phase-1-linux-basic.md](roadmap/phase-1-linux-basic.md) |
+| **1** | Linux Basic Support | ✅ Complete | [phase-1-linux-basic.md](roadmap/phase-1-linux-basic.md) |
 | **2** | Remove libbsd Dependency | 🔜 Planned | [phase-2-remove-libbsd.md](roadmap/phase-2-remove-libbsd.md) |
-| **3** | CI & Quality Gates | 🔜 Planned | — |
+| **3** | iOS Target Refactor | 🔜 Planned | — |
+| **4** | CI & Quality Gates | ✅ Complete | — |
 
 ---
 
@@ -61,3 +63,4 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | Version | Date | Change Type | Description |
 |---------|------|-------------|-------------|
 | v1.0.0 | 2025-01-26 | Initial | Initial roadmap with Linux support phases |
+| v1.1.0 | 2025-01-26 | Updated | Phase 1 & CI complete; added iOS target refactor phase |
