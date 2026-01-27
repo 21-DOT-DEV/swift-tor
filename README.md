@@ -107,24 +107,64 @@
  #endif
  ```
  
- ## Quick Start (Advanced)
- 
- Use the control protocol to manage onion services:
- 
- ```swift
- import Tor
- 
- let control = try await client.control()
- 
- let service = try await control.addOnion(
-     key: .newV3(discardPrivateKey: true),
-     ports: [.toLocalPort(80, localPort: 8080)]
- )
- 
- print(service.onionAddress)
- 
- try await control.delOnion(service)
- ```
+ ## Creating a Hidden Service
+
+Create an ephemeral v3 onion service that forwards traffic to a local server:
+
+```swift
+import Tor
+
+// Start Tor first
+let client = TorClient(configuration: .makeDefault())
+try await client.start()
+try await client.waitUntilBootstrapped()
+
+// Get the control client
+let control = try await client.control()
+
+// Create an ephemeral onion service
+// - Maps port 80 on the .onion to localhost:8080
+// - Private key is discarded (service won't survive restart)
+let service = try await control.addOnion(
+    key: .newV3(discardPrivateKey: true),
+    ports: [.toLocalPort(80, localPort: 8080)]
+)
+
+print("🧅 Hidden service running at: \(service.onionAddress)")
+// e.g., "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"
+
+// Your local HTTP server on port 8080 is now accessible via Tor!
+// Users can reach it at: http://<serviceID>.onion/
+
+// When done, clean up
+try await control.delOnion(service)
+await client.stop()
+```
+
+### Persistent Hidden Services
+
+To create a hidden service that survives restarts, keep the private key:
+
+```swift
+// Create service and get the private key
+let service = try await control.addOnion(
+    key: .newV3(discardPrivateKey: false),  // Keep the key
+    ports: [.toLocalPort(443, localPort: 8443)]
+)
+
+// Save service.privateKey securely for later use
+let privateKey = service.privateKey!  // e.g., "ED25519-V3:base64..."
+
+// Later, recreate the same .onion address:
+let restoredService = try await control.addOnion(
+    key: .providedV3(privateKey),
+    ports: [.toLocalPort(443, localPort: 8443)]
+)
+// restoredService.onionAddress == service.onionAddress
+```
+
+> [!WARNING]  
+> Store private keys securely (e.g., Keychain on Apple platforms). Anyone with the private key controls the .onion address.
  
  ## Demo
  
