@@ -1,7 +1,7 @@
 # swift-tor Product Roadmap
 
-**Version**: v1.0.0  
-**Last Updated**: 2025-01-26  
+**Version**: v1.3.0  
+**Last Updated**: 2026-01-27  
 
 ---
 
@@ -14,35 +14,105 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 - Bitcoin/Lightning wallet developers (Tor integration)
 - Developers building .onion service clients
 - Swift developers needing anonymous networking
+- Users in censored regions (Snowflake client)
+- Relay/bridge operators (macOS/Linux)
 
 **Core Value Proposition**:
 - Embedded Tor (in-process, no external daemon)
 - Swift concurrency integration (async/await)
 - Cross-platform support (macOS, iOS, Linux)
 - Minimal external dependencies
-
----
-
-## 🔴 High Priority Items
-
-| Item | Description | Status |
-|------|-------------|--------|
-| **Linux Basic Support** | Build and test on Linux. Handle platform differences (types, missing functions). | ✅ Complete |
-| **Remove libbsd Dependency** | Use `ext/strlcpy.c` and `ext/strlcat.c` from Vendor/tor instead of `-include bsd/string.h`. Cleaner build, fewer dependencies. | 🔜 Planned |
-| **iOS Target Refactor** | Create separate `libtor-ios` target excluding hashx JIT (`compiler_a64.c`). Removes need for `__clear_cache` shim. JIT is non-functional on iOS anyway due to code signing. | 🔜 Planned |
-| **CI Workflows** | Add GitHub Actions for macOS, iOS, and Linux Docker builds. | ✅ Complete |
+- Censorship circumvention (Snowflake client)
+- Network contribution (relay/bridge on macOS/Linux)
 
 ---
 
 ## Phases Overview
 
-| Phase | Name | Status | File |
-|-------|------|--------|------|
+| Phase | Name | Status | Est. Duration |
+|-------|------|--------|---------------|
 | **0** | Foundation | ✅ Complete | — |
-| **1** | Linux Basic Support | ✅ Complete | [phase-1-linux-basic.md](roadmap/phase-1-linux-basic.md) |
-| **2** | Remove libbsd Dependency | 🔜 Planned | [phase-2-remove-libbsd.md](roadmap/phase-2-remove-libbsd.md) |
-| **3** | iOS Target Refactor | 🔜 Planned | — |
+| **1** | Linux Basic Support | ✅ Complete | — |
+| **2** | Remove libbsd Dependency | 🔜 Planned | 1 week |
+| **3** | iOS Target Refactor | 🔜 Planned | 1 week |
 | **4** | CI & Quality Gates | ✅ Complete | — |
+| **5** | Quick Wins | 🔜 Planned | 1-2 weeks |
+| **6** | Core Censorship | 🔜 Planned | 3-4 weeks |
+| **7** | Snowflake Client | 🔜 Planned | 4-6 weeks |
+| **8** | Advanced Features | 🔜 Planned | 2-4 weeks |
+
+---
+
+## Phase 5: Quick Wins (1-2 weeks)
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **DNS over Tor** | Resolve hostnames through Tor via control protocol. Prevents DNS leaks. | S |
+| **Bootstrap Events** | Structured bootstrap progress with phase tags, summaries, warnings. | S |
+| **Bandwidth Metrics** | Expose bytes read/written, circuit count via control protocol. | S |
+| **Circuit Isolation** | SOCKS port isolation flags (`IsolateDestAddr`, `IsolateSOCKSAuth`, etc.). | S |
+
+**Reference**: [feature-comparison.md](../../specs/feature-comparison.md) for draft APIs
+
+---
+
+## Phase 6: Core Censorship (3-4 weeks)
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **PT Configuration API** | First-class `TorConfiguration` support for pluggable transports and bridges. | S |
+| **obfs4 Client** | obfs4 transport via managed PT (macOS/Linux) or unmanaged PT (iOS). | M |
+
+**Reference**: [feature-comparison.md](../../specs/feature-comparison.md) for draft APIs
+
+---
+
+## Phase 7: Snowflake Client (4-6 weeks)
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **Snowflake Client** | Native WebRTC Snowflake transport. iOS-compatible via unmanaged PT. | L |
+
+**Reference**: [relay-snowflake-investigation.md](../../specs/relay-snowflake-investigation.md) for full implementation plan
+
+---
+
+## Phase 8: Advanced Features (2-4 weeks)
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **HSv3 Client Auth** | Client-side authorization for private onion services. | M |
+| **Relay Mode** | Run as non-exit relay (macOS/Linux). Requires public IP, port forwarding. | S |
+| **Bridge Mode** | Run as bridge relay (macOS/Linux). Helps censored users connect. | S |
+
+---
+
+## ⚪ Deferred / Out of Scope
+
+| Item | Description | Rationale |
+|------|-------------|-----------|
+| **Exit Relay** | Full exit relay configuration | Requires operator expertise; out of scope for initial implementation |
+| **Server Transport Plugins** | Bridge-side PT support (obfs4, etc.) | macOS/Linux only; low priority |
+| **Snowflake Proxy** | Volunteer proxy node | Background limits on iOS; use official tools |
+
+---
+
+## Platform Feature Matrix
+
+| Feature | macOS | Linux | iOS |
+|---------|:-----:|:-----:|:---:|
+| Tor Client | ✅ | ✅ | ✅ |
+| Onion Services | ✅ | ✅ | ✅ |
+| DNS over Tor | 🔜 | 🔜 | 🔜 |
+| Bootstrap Events | 🔜 | 🔜 | 🔜 |
+| Bandwidth Metrics | 🔜 | 🔜 | 🔜 |
+| Circuit Isolation | 🔜 | 🔜 | 🔜 |
+| obfs4 Client | 🔜 | 🔜 | 🔜 |
+| Snowflake Client | 🔜 | 🔜 | 🔜 |
+| HSv3 Client Auth | 🔜 | 🔜 | 🔜 |
+| Non-Exit Relay | 🔜 | 🔜 | ❌ |
+| Bridge | 🔜 | 🔜 | ❌ |
+| Exit Relay | ⏸️ | ⏸️ | ❌ |
 
 ---
 
@@ -55,6 +125,11 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | Linux build & test (with libbsd) | Pass | ✅ |
 | Linux build & test (without libbsd) | Pass | 🔜 |
 | Platform CI pass rate | 100% across macOS + Linux | 🔜 |
+| DNS resolution via Tor | Resolves hostnames without DNS leak | 🔜 |
+| Bootstrap events streaming | Structured events emitted | 🔜 |
+| obfs4 bootstrap | Connect via obfs4 bridge | 🔜 |
+| Snowflake client bootstrap | Connect via Snowflake on all platforms | 🔜 |
+| Relay self-test | ORPort reachable on macOS/Linux | 🔜 |
 
 ---
 
@@ -64,3 +139,5 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 |---------|------|-------------|-------------|
 | v1.0.0 | 2025-01-26 | Initial | Initial roadmap with Linux support phases |
 | v1.1.0 | 2025-01-26 | Updated | Phase 1 & CI complete; added iOS target refactor phase |
+| v1.2.0 | 2026-01-27 | Updated | Added Snowflake client and Relay/Bridge mode based on investigation |
+| v1.3.0 | 2026-01-27 | Restructured | Reorganized into 8 phases with feature comparison; Circuit Isolation moved to Quick Wins |
