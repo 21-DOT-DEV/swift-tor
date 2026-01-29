@@ -25,6 +25,9 @@ let package = Package(
                 .product(name: "libssl", package: "swift-openssl"),
                 .product(name: "libevent", package: "swift-event"),
             ],
+            exclude: [
+                "src/ext/ed25519/donna/test-internals.c",  // Included inline by ed25519_tor.c
+            ],
             cSettings: [
                 .headerSearchPath("include"),
                 .headerSearchPath("."),
