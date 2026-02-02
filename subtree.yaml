@@ -32,8 +32,7 @@ subtrees:
     - '**/{nss_,*_nss}*.c'
     # Unused modules
     - '**/lua/**'
-    # Inline-included by other files (tor handles missing functions)
-    - '**/strl{cat,cpy}.c'
+    # Inline-included by compat_string.c (tor handles missing functions)
     - '**/getdelim.c'
     # Stub files (conflict with real implementations)
     - '**/{dirauth,dircache,relay}/*_stub.c'

@@ -33,13 +33,27 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 |-------|------|--------|---------------|
 | **0** | Foundation | ✅ Complete | — |
 | **1** | Linux Basic Support | ✅ Complete | — |
-| **2** | Remove libbsd Dependency | 🔜 Planned | 1 week |
+| **2** | Remove libbsd Dependency | ✅ Complete | — |
 | **3** | iOS Target Refactor | 🔜 Planned | 1 week |
+| **3.5** | Binary Size Optimization | 🔜 Planned | 1 week |
 | **4** | CI & Quality Gates | ✅ Complete | — |
 | **5** | Quick Wins | 🔜 Planned | 1-2 weeks |
 | **6** | Core Censorship | 🔜 Planned | 3-4 weeks |
 | **7** | Snowflake Client | 🔜 Planned | 4-6 weeks |
 | **8** | Advanced Features | 🔜 Planned | 2-4 weeks |
+
+---
+
+## Phase 3.5: Binary Size Optimization (1 week)
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **GeoIP Optional** | Make GeoIP data loading optional (~2MB savings when disabled). Add config flag. | S |
+| **Client-Only Modules** | Properly disable dirauth/dircache/relay modules by excluding source files in subtree.yaml. Requires coordinated orconfig.h + extraction changes. | M |
+
+**Notes**:
+- LTO and strip options documented in Package.swift (require unsafeFlags, app-only)
+- Module disabling requires excluding entire feature directories, not just stubs
 
 ---
 
@@ -123,7 +137,7 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | macOS build & test | Pass | ✅ |
 | iOS build | Pass | ✅ |
 | Linux build & test (with libbsd) | Pass | ✅ |
-| Linux build & test (without libbsd) | Pass | 🔜 |
+| Linux build & test (without libbsd) | Pass | ✅ |
 | Platform CI pass rate | 100% across macOS + Linux | 🔜 |
 | DNS resolution via Tor | Resolves hostnames without DNS leak | 🔜 |
 | Bootstrap events streaming | Structured events emitted | 🔜 |
@@ -141,3 +155,4 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | v1.1.0 | 2025-01-26 | Updated | Phase 1 & CI complete; added iOS target refactor phase |
 | v1.2.0 | 2026-01-27 | Updated | Added Snowflake client and Relay/Bridge mode based on investigation |
 | v1.3.0 | 2026-01-27 | Restructured | Reorganized into 8 phases with feature comparison; Circuit Isolation moved to Quick Wins |
+| v1.4.0 | 2026-01-30 | Updated | Phase 2 complete; added Phase 3.5 Binary Size Optimization (GeoIP Optional, Client-Only Modules) |

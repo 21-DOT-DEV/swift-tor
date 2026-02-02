@@ -383,15 +383,24 @@
 #define HAVE_MMAP 1
 
 /* Compile with Directory Authority feature support */
+/* NOTE: For client-only builds, this could be disabled with --disable-module-dirauth
+   at configure time, but requires excluding dirauth source files. Currently enabled
+   with stub files providing minimal implementations. */
 #define HAVE_MODULE_DIRAUTH 1
 
 /* Compile with directory cache support */
+/* NOTE: For client-only builds, this could be disabled, but requires excluding
+   dircache source files. Currently enabled with stub files. */
 #define HAVE_MODULE_DIRCACHE 1
 
 /* Compile with proof-of-work support */
+/* Enabled via Package.swift HAVE_MODULE_POW define */
 /* #undef HAVE_MODULE_POW */
 
 /* Compile with Relay feature support */
+/* NOTE: For client-only builds, this could be disabled with --disable-module-relay
+   at configure time, but requires excluding relay source files. Currently enabled
+   with stub files providing minimal implementations. */
 #define HAVE_MODULE_RELAY 1
 
 /* Define to 1 if you have the <nacl/crypto_scalarmult_curve25519.h> header
@@ -533,10 +542,20 @@
 #define HAVE_STRING_H 1
 
 /* Define to 1 if you have the 'strlcat' function. */
+#if defined(__linux__)
+/* Use tor's internal implementation from ext/strlcat.c */
+#undef HAVE_STRLCAT
+#else
 #define HAVE_STRLCAT 1
+#endif
 
 /* Define to 1 if you have the 'strlcpy' function. */
+#if defined(__linux__)
+/* Use tor's internal implementation from ext/strlcpy.c */
+#undef HAVE_STRLCPY
+#else
 #define HAVE_STRLCPY 1
+#endif
 
 /* Define to 1 if you have the 'strncasecmp' function. */
 #define HAVE_STRNCASECMP 1
