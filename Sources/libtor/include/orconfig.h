@@ -11,8 +11,8 @@
    when the version changes.) */
 #define APPROX_RELEASE_DATE "2025-11-17"
 
-/* tor's build directory */
-#define BUILDDIR "/Users/csjones/Developer/swift-tor/Vendor/tor"
+/* tor's build directory - not used by embedded builds */
+/* #undef BUILDDIR */
 
 /* Compiler name */
 #define COMPILER /**/
@@ -23,11 +23,11 @@
 /* Compiler version */
 #define COMPILER_VERSION "17.0.0"
 
-/* tor's configuration directory */
-#define CONFDIR "/usr/local/etc/tor"
+/* tor's configuration directory - not used when DISABLE_SYSTEM_TORRC is enabled */
+/* #undef CONFDIR */
 
-/* Flags passed to configure */
-#define CONFIG_FLAGS "--with-openssl-dir=/opt/homebrew/opt/openssl@3 --with-libevent-dir=/opt/homebrew/opt/libevent --disable-asciidoc"
+/* Flags passed to configure - not used by embedded builds */
+/* #undef CONFIG_FLAGS */
 
 /* Enable smartlist debugging */
 /* #undef DEBUG_SMARTLIST */
@@ -36,7 +36,8 @@
 /* #undef DISABLE_MEMORY_SENTINELS */
 
 /* Defined if we're not going to look for a torrc in SYSCONF */
-/* #undef DISABLE_SYSTEM_TORRC */
+/* Enabled for embedded library use - config passed programmatically via tor_api */
+#define DISABLE_SYSTEM_TORRC 1
 
 /* Define to 1 iff memset(0) sets doubles to 0.0 */
 #define DOUBLE_0_REP_IS_ZERO_BYTES 1
@@ -64,7 +65,8 @@
 /* #undef ENABLE_RESTART_DEBUGGING */
 
 /* Defined if we're going to try to use zstd's "static-only" APIs. */
-#define ENABLE_ZSTD_ADVANCED_APIS 1
+/* Dead code - HAVE_ZSTD is not defined */
+/* #undef ENABLE_ZSTD_ADVANCED_APIS */
 
 /* Define if enum is always signed */
 /* #undef ENUM_VALS_ARE_SIGNED */
@@ -782,25 +784,27 @@
 #define NULL_REP_IS_ZERO_BYTES 1
 
 /* disable openssl deprecated-function warnings */
-#define OPENSSL_SUPPRESS_DEPRECATED 1
+/* Not used in source code - OpenSSL headers handle this */
+/* #undef OPENSSL_SUPPRESS_DEPRECATED */
 
 /* Name of package */
 #define PACKAGE "tor"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT ""
+/* #undef PACKAGE_BUGREPORT */
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "tor"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "tor 0.4.8.21"
+/* Not used in source code */
+/* #undef PACKAGE_STRING */
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "tor"
+/* #undef PACKAGE_TARNAME */
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL ""
+/* #undef PACKAGE_URL */
 
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "0.4.8.21"
@@ -830,7 +834,8 @@
 #define SIZEOF_PID_T 4
 
 /* The size of 'SHA_CTX', as computed by sizeof. */
-#define SIZEOF_SHA_CTX 96
+/* Not used - OpenSSL handles SHA_CTX sizing internally */
+/* #undef SIZEOF_SHA_CTX */
 
 /* The size of 'short', as computed by sizeof. */
 #define SIZEOF_SHORT 2
@@ -851,10 +856,11 @@
 #define SIZEOF_VOID_P 8
 
 /* The size of '__int64', as computed by sizeof. */
-#define SIZEOF___INT64 0
+/* Windows-only type, not used on macOS/Linux */
+/* #undef SIZEOF___INT64 */
 
-/* tor's sourcedir directory */
-#define SRCDIR "/Users/csjones/Developer/swift-tor/Vendor/tor"
+/* tor's sourcedir directory - not used by embedded builds */
+/* #undef SRCDIR */
 
 /* Set to 1 if we can compile a simple stdatomic example. */
 #define STDATOMIC_WORKS 1
@@ -862,7 +868,8 @@
 /* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
-#define STDC_HEADERS 1
+/* Not used - assumed true for modern platforms */
+/* #undef STDC_HEADERS */
 
 /* Compile with Android specific features enabled */
 /* #undef USE_ANDROID */
