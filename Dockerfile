@@ -4,7 +4,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         git \
-        libbsd-dev \
         pkg-config \
         zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*

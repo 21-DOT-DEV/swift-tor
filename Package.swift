@@ -1,5 +1,12 @@
 // swift-tools-version: 6.1
 
+// MARK: - Release Build Optimizations (Future)
+// Link-Time Optimization (LTO) - Can reduce binary size 10-20%:
+//   .unsafeFlags(["-flto=thin"], .when(configuration: .release))
+// Strip Debug Symbols - Further reduces release binary size:
+//   .unsafeFlags(["-Xlinker", "-dead_strip"], .when(configuration: .release))
+// Note: unsafeFlags prevent use as a dependency; consider for app targets only
+
 import PackageDescription
 
 let package = Package(
@@ -25,6 +32,11 @@ let package = Package(
                 .product(name: "libssl", package: "swift-openssl"),
                 .product(name: "libevent", package: "swift-event"),
             ],
+            exclude: [
+                "src/ext/ed25519/donna/test-internals.c",  // Included inline by ed25519_tor.c
+                "src/ext/strlcpy.c",                       // Included inline by compat_string.c
+                "src/ext/strlcat.c",                       // Included inline by compat_string.c
+            ],
             cSettings: [
                 .headerSearchPath("include"),
                 .headerSearchPath("."),
@@ -41,13 +53,11 @@ let package = Package(
                 .define("FALLTHROUGH", to: "__attribute__((fallthrough))"),
                 .define("SHARE_DATADIR", to: "\"/usr/local/share\""),
                 .define("LOCALSTATEDIR", to: "\"/usr/local/var\""),
-                // Linux: Enable GNU extensions (memmem, etc.) and force-include BSD string functions
+                // Linux: Enable GNU extensions (memmem, etc.)
                 .define("_GNU_SOURCE", .when(platforms: [.linux])),
-                .unsafeFlags(["-include", "bsd/string.h"], .when(platforms: [.linux])),
             ],
             linkerSettings: [
                 .linkedLibrary("z"), // zlib => -lz
-                .linkedLibrary("bsd", .when(platforms: [.linux])), // libbsd for strlcpy/strlcat
             ]
         ),
         .target(

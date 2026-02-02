@@ -7,39 +7,40 @@ subtrees:
   branch: tor-0.4.8.21
   squash: true
   extractions:
-  - from: 'orconfig.h'
-    to: Sources/libtor/include/
+  # NOTE: These files are manually maintained (not extracted from Vendor/tor):
+  #   - Sources/libtor/include/orconfig.h (cross-platform config for macOS/Linux/iOS)
+  #   - Sources/libtor/include/libtor.h (Swift bindings header)
+  #   - Sources/libtor/include/tor_api.h (public API header, copied from Vendor)
+  #   - Sources/libtor/Shims/clear_cache_shim.c (iOS __clear_cache shim)
+  #   - Sources/libtor/src/lib/version/micro-revision.i (version stub)
+  #   - Sources/libtor/src/app/main/tor_main_loop.c (main.c without main())
   - from: 'src/{lib,core,feature,app,trunnel,ext}/**/*.{c,h,inc}'
     to: Sources/libtor/
     exclude:
-    - '**/test/**'
-    - '**/testing/**'
-    - '**/app/main/*.c'
+    # Test/benchmark infrastructure
+    - '**/{test,testing,bench,fuzz}/**'
     - '**/bench.c'
-    - '**/fuzz/**'
-    - '**/*winthreads*.c'
-    - '**/*win32*.c'
-    - '**/*_win32*.c'
-    - '**/*_nss*.c'
-    - '**/nss_*.c'
     - '**/tinytest*'
-    - '**/bench/**'
-    - '**/lua/**'
-    - '**/strlcat.c'
-    - '**/strlcpy.c'
-    - '**/getdelim.c'
-    - '**/test-*.c'
     - '**/test-*.h'
-    # Exclude duplicate implementations (official build uses only one variant)
-    - '**/ed25519/donna/ed25519.c'        # Use ed25519_tor.c instead
-    - '**/keccak-tiny/keccak-tiny.c'      # Use keccak-tiny-unrolled.c instead
-    - '**/trace/trace_sys.c'              # Use trace_stub.c (tracing disabled)
-    # Exclude platform-specific files
-    - '**/OpenBSD_malloc_Linux.c'         # Linux-only, breaks macOS page size
-  # Extraction for tor_api.h public header
-  - from: 'src/feature/api/tor_api.h'
-    to: Sources/libtor/include/
-  # NOTE: Stub files are manually maintained (not in Vendor/tor):
-  #   - Sources/libtor/src/lib/version/micro-revision.i
-  #   - Sources/libtor/src/ext/ed25519/donna/test-internals.c
-  # Templates are kept in Sources/libtor/stubs/ for reference
+    - '**/ext/timeouts/test-*.c'
+    - '**/ed25519/donna/test.c'
+    - '**/equix/**/tests.c'
+    # Entry points (use tor_main_loop.c instead)
+    - '**/app/main/{main,ntmain,tor_main}.c'
+    # Platform-specific (Windows/NSS)
+    - '**/*{winthreads,win32,_win32}*.c'
+    - '**/{nss_,*_nss}*.c'
+    # Unused modules
+    - '**/lua/**'
+    # Inline-included by compat_string.c (tor handles missing functions)
+    - '**/getdelim.c'
+    # Stub files (conflict with real implementations)
+    - '**/{dirauth,dircache,relay}/*_stub.c'
+    # Duplicate implementations (use preferred variant)
+    - '**/curve25519_donna/curve25519-donna.c'
+    - '**/ed25519/donna/ed25519.c'
+    - '**/keccak-tiny/keccak-tiny.c'
+    - '**/trace/trace_sys.c'
+    # Platform-specific / manually maintained
+    - '**/OpenBSD_malloc_Linux.c'
+    - '**/feature/api/tor_api.h'

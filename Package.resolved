@@ -1,5 +1,5 @@
 {
-  "originHash" : "0a30a4ee87594c29ce312040520270cb887d3e0ddcbfed8e0646eda6c14af5f5",
+  "originHash" : "2c78ee06ee018ebbe6a46ab2e8a66deee9ad87322645c2678b6475f158d2f1ca",
   "pins" : [
     {
       "identity" : "swift-artifact-parser",
@@ -16,7 +16,7 @@
       "location" : "https://github.com/21-DOT-DEV/swift-event.git",
       "state" : {
         "branch" : "main",
-        "revision" : "4433223e14fe3357698d8d20be4880067f75ae63"
+        "revision" : "94e8c64d4ad9290d136c02996fa24f731057d345"
       }
     },
     {
