@@ -2,5 +2,9 @@
 .git
 .DS_Store
 .swiftpm
+.vscode
+.specify
 DerivedData
 Vendor/tor/.git
+*.xcodeproj
+*.xcworkspace

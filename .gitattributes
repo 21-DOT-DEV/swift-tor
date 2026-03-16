@@ -1,0 +1,40 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Swift files
+*.swift text diff=swift
+
+# C files (upstream library code)
+*.c text diff=c
+*.h text diff=c
+*.inc text diff=c
+
+# Upstream C library in Sources should be marked as vendored
+Sources/libtor/src/**               linguist-vendored
+Sources/libtor/include/orconfig.h   linguist-vendored=false
+Sources/libtor/include/libtor.h     linguist-vendored=false
+Sources/libtor/include/tor_api.h    linguist-vendored=false
+Sources/libtor/Shims/**             linguist-vendored=false
+
+# Vendor directory
+Vendor/**                   export-ignore linguist-vendored
+
+# Development directories
+.build/**                   export-ignore
+.github/**                  export-ignore
+.vscode/**                  export-ignore
+.swiftpm/**                 export-ignore
+.specify/**                 export-ignore
+.windsurf/**                export-ignore
+specs/**                    export-ignore
+
+# CI/CD and tooling configs
+Dockerfile                  export-ignore
+subtree.yaml                export-ignore
+
+# Git and editor files
+.gitignore                  export-ignore
+.DS_Store                   export-ignore
+
+# Package lockfile (not needed for library consumers)
+Package.resolved            export-ignore linguist-generated

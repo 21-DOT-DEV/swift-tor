@@ -192,8 +192,12 @@ let restoredService = try await control.addOnion(
  
  ## Roadmap
  
- - **Linux support**: ✅ basic support complete (Phase 1)
- - **Remove libbsd dependency**: planned (Phase 2) — use tor's internal strlcpy/strlcat
+ - **Linux support**: ✅ complete (Phase 1)
+ - **Remove libbsd dependency**: ✅ complete (Phase 2)
+ - **iOS Target Refactor**: 🔜 planned (Phase 3)
+ - **Binary Size Optimization**: 🔜 planned (Phase 3.5)
+ 
+See [roadmap.md](.specify/memory/roadmap.md) for full details.
  
  ## Security & Privacy
 

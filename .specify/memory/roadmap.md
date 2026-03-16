@@ -98,6 +98,9 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | **HSv3 Client Auth** | Client-side authorization for private onion services. | M |
 | **Relay Mode** | Run as non-exit relay (macOS/Linux). Requires public IP, port forwarding. | S |
 | **Bridge Mode** | Run as bridge relay (macOS/Linux). Helps censored users connect. | S |
+| **ZSTD Compression** | Optional zstd compression for directory data. Reduces bandwidth. Requires libzstd dependency. | S |
+| **LZMA Compression** | Optional lzma compression for directory data. Requires liblzma dependency. | S |
+| **KIST Support** | Kernel-Informed Socket Transport for relay throughput optimization. Linux only. | S |
 
 ---
 
@@ -156,3 +159,4 @@ Provide a Swift package that embeds Tor (`libtor`) with a Swift-concurrency-firs
 | v1.2.0 | 2026-01-27 | Updated | Added Snowflake client and Relay/Bridge mode based on investigation |
 | v1.3.0 | 2026-01-27 | Restructured | Reorganized into 8 phases with feature comparison; Circuit Isolation moved to Quick Wins |
 | v1.4.0 | 2026-01-30 | Updated | Phase 2 complete; added Phase 3.5 Binary Size Optimization (GeoIP Optional, Client-Only Modules) |
+| v1.5.0 | 2026-02-02 | Updated | Added ZSTD/LZMA compression and KIST support to Phase 8 |

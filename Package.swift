@@ -49,10 +49,10 @@ let package = Package(
                 .define("HAVE_CONFIG_H"),
                 .define("HAVE_MODULE_POW"),  // Enable PoW module (equix already extracted)
                 .define("ED25519_SUFFIX", to: "_donna"),  // Required for curve25519 symbol names
-                .define("_SYS_BUF_H_"),
+                .define("_SYS_BUF_H_"),  // Prevents conflict with system sys/buf.h
                 .define("FALLTHROUGH", to: "__attribute__((fallthrough))"),
-                .define("SHARE_DATADIR", to: "\"/usr/local/share\""),
-                .define("LOCALSTATEDIR", to: "\"/usr/local/var\""),
+                .define("SHARE_DATADIR", to: "\"/usr/local/share\""),  // Required: default GeoIP path (overridden at runtime)
+                .define("LOCALSTATEDIR", to: "\"/usr/local/var\""),  // Required: fallback DataDirectory (never used - always set programmatically)
                 // Linux: Enable GNU extensions (memmem, etc.)
                 .define("_GNU_SOURCE", .when(platforms: [.linux])),
             ],
