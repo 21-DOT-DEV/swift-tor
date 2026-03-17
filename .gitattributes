@@ -30,6 +30,7 @@ specs/**                    export-ignore linguist-vendored
 
 # CI/CD and tooling configs
 Dockerfile                  export-ignore
+.dockerignore               export-ignore
 subtree.yaml                export-ignore
 
 # Git and editor files
