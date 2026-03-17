@@ -20,13 +20,13 @@ Sources/libtor/Shims/**             linguist-vendored=false
 Vendor/**                   export-ignore linguist-vendored
 
 # Development directories
-.build/**                   export-ignore
-.github/**                  export-ignore
-.vscode/**                  export-ignore
-.swiftpm/**                 export-ignore
-.specify/**                 export-ignore
-.windsurf/**                export-ignore
-specs/**                    export-ignore
+.build/**                   export-ignore linguist-vendored
+.github/**                  export-ignore linguist-vendored
+.vscode/**                  export-ignore linguist-vendored
+.swiftpm/**                 export-ignore linguist-vendored
+.specify/**                 export-ignore linguist-vendored
+.windsurf/**                export-ignore linguist-vendored
+specs/**                    export-ignore linguist-vendored
 
 # CI/CD and tooling configs
 Dockerfile                  export-ignore
