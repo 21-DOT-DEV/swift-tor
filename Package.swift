@@ -20,7 +20,7 @@ let package = Package(
         .library(name: "Tor", targets: ["Tor"])
     ],
     dependencies: [
-        .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.7"),
+        .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13"),
         .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", branch: "main"),
         .package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
     ],
