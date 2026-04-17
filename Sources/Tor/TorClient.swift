@@ -176,6 +176,8 @@ public actor TorClient {
         // Wait a moment for Tor to initialize
         try await Task.sleep(for: .milliseconds(500))
         
+        Self.sanitizeFileDescriptorLimit()
+        
         // Create control client
         if controlSocketFD >= 0 {
             controlClient = TorControlClient(
@@ -218,6 +220,12 @@ public actor TorClient {
         }
         
         cleanup()
+        
+        // Clean up owned data directory (e.g., from `TorConfiguration.ephemeral()`).
+        // Best-effort: ignored if the directory is already gone or unwritable.
+        if configuration.ownsDataDirectory {
+            try? FileManager.default.removeItem(atPath: configuration.dataDirectory)
+        }
         
         state = .stopped
         broadcastEvent(.stateChanged(.stopped))
@@ -347,5 +355,45 @@ public actor TorClient {
         for continuation in eventContinuations.values {
             continuation.yield(event)
         }
+    }
+    
+    /// Sanitize the process file descriptor soft limit after Tor initialization.
+    ///
+    /// Tor's `set_max_file_descriptors()` raises `rlim_cur` to `rlim_max`.
+    /// On macOS, `rlim_max` is `RLIM_INFINITY` (`0x7FFFFFFFFFFFFFFF`).
+    /// C code that casts `rlim_t` (uint64) to `int` will silently truncate
+    /// this to -1, causing "Not enough file descriptors" errors.
+    ///
+    /// We cap the soft limit at `kern.maxfilesperproc` (macOS) or 10240
+    /// (Linux fallback) — safe for both Tor (which tracks its own FD budget
+    /// internally) and any other code sharing the process.
+    private static func sanitizeFileDescriptorLimit() {
+        #if !os(Windows)
+        // On Linux/Glibc, `RLIMIT_NOFILE` imports as `__rlimit_resource` (an enum),
+        // but `getrlimit`/`setrlimit` expect `__rlimit_resource_t` (Int32). On Darwin
+        // it's already Int32, so the cast is a no-op.
+        #if canImport(Glibc) || canImport(Musl)
+        // `RLIMIT_NOFILE` is imported as `__rlimit_resource` (enum); the syscalls
+        // expect `__rlimit_resource_t` which is `Int32`.
+        let resource = Int32(RLIMIT_NOFILE.rawValue)
+        #else
+        let resource = RLIMIT_NOFILE
+        #endif
+        var rlim = rlimit()
+        guard getrlimit(resource, &rlim) == 0 else { return }
+        guard rlim.rlim_cur > rlim_t(Int32.max) else { return }
+        // sysconf(_SC_OPEN_MAX) returns rlim_cur — already poisoned.
+        // Query the actual kernel per-process file limit instead.
+        #if canImport(Darwin)
+        var maxFiles: Int32 = 10240
+        var size = MemoryLayout<Int32>.size
+        sysctlbyname("kern.maxfilesperproc", &maxFiles, &size, nil, 0)
+        let cap = rlim_t(maxFiles > 0 ? maxFiles : 10240)
+        #else
+        let cap: rlim_t = 10240
+        #endif
+        rlim.rlim_cur = cap
+        setrlimit(resource, &rlim)
+        #endif
     }
 }

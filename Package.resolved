@@ -16,7 +16,7 @@
       "location" : "https://github.com/21-DOT-DEV/swift-event.git",
       "state" : {
         "branch" : "main",
-        "revision" : "408d4cce610e456cd4743f5aeab10d58f424a3e7"
+        "revision" : "94e8c64d4ad9290d136c02996fa24f731057d345"
       }
     },
     {
@@ -25,7 +25,7 @@
       "location" : "https://github.com/21-DOT-DEV/swift-openssl.git",
       "state" : {
         "branch" : "main",
-        "revision" : "de6d8a705d15649b04d0f30f8cbdc51e0242158b"
+        "revision" : "492eeffaf1b09ed180d1313e5f2f62331691bf1a"
       }
     },
     {

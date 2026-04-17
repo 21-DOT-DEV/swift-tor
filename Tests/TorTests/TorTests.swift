@@ -8,6 +8,7 @@
 //  See the accompanying file LICENSE for information
 //
 
+import Foundation
 import Testing
 import libtor
 @testable import Tor
@@ -100,6 +101,60 @@ struct TorConfigurationTests {
         #expect(PortPolicy.ephemeral.description == "auto")
         #expect(PortPolicy.fixed(9050).description == "9050")
         #expect(PortPolicy.disabled.description == "0")
+    }
+
+    // MARK: - ownsDataDirectory + ephemeral()
+
+    @Test("Default init sets ownsDataDirectory to false")
+    func testDefaultInitDoesNotOwnDataDirectory() {
+        let config = TorConfiguration(dataDirectory: "/tmp/test-fixed")
+        #expect(config.ownsDataDirectory == false)
+    }
+
+    @Test("makeDefault does not own the data directory")
+    func testMakeDefaultDoesNotOwnDataDirectory() {
+        let config = TorConfiguration.makeDefault()
+        #expect(config.ownsDataDirectory == false)
+    }
+
+    @Test("ephemeral owns its data directory")
+    func testEphemeralOwnsDataDirectory() {
+        let config = TorConfiguration.ephemeral()
+        #expect(config.ownsDataDirectory == true)
+    }
+
+    @Test("ephemeral produces a unique data directory per call")
+    func testEphemeralPathsAreUnique() {
+        let a = TorConfiguration.ephemeral()
+        let b = TorConfiguration.ephemeral()
+        #expect(a.dataDirectory != b.dataDirectory)
+    }
+
+    @Test("ephemeral data directory lives under the temporary directory")
+    func testEphemeralPathIsInTempDir() {
+        let config = TorConfiguration.ephemeral()
+        let tempDir = FileManager.default.temporaryDirectory.path
+        #expect(config.dataDirectory.hasPrefix(tempDir))
+    }
+
+    @Test("ephemeral propagates an explicit cache directory")
+    func testEphemeralPropagatesCacheDirectory() {
+        let config = TorConfiguration.ephemeral(cacheDirectory: "/var/cache/tor-test")
+        #expect(config.cacheDirectory == "/var/cache/tor-test")
+    }
+
+    @Test("ephemeral has a nil cache directory by default")
+    func testEphemeralDefaultsNilCacheDirectory() {
+        let config = TorConfiguration.ephemeral()
+        #expect(config.cacheDirectory == nil)
+    }
+
+    @Test("ownsDataDirectory flag is mutable after init")
+    func testOwnsDataDirectoryIsMutable() {
+        var config = TorConfiguration(dataDirectory: "/tmp/test-mut")
+        #expect(config.ownsDataDirectory == false)
+        config.ownsDataDirectory = true
+        #expect(config.ownsDataDirectory == true)
     }
 }
 

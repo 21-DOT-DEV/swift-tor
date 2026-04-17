@@ -67,7 +67,14 @@ public struct TorConfiguration: Sendable {
     
     /// Additional command-line arguments to pass to Tor.
     public var extraArgs: [String]
-    
+
+    /// When `true`, `TorClient.stop()` removes `dataDirectory` after shutdown.
+    ///
+    /// Use this for per-session ephemeral instances where Tor state should
+    /// not persist across restarts. Defaults to `false` to preserve backward
+    /// compatibility with long-lived data directories.
+    public var ownsDataDirectory: Bool
+
     /// Creates a Tor configuration with the specified options.
     /// - Parameters:
     ///   - dataDirectory: Path to the data directory.
@@ -76,13 +83,15 @@ public struct TorConfiguration: Sendable {
     ///   - cookieAuthentication: Enable cookie auth. Defaults to `false` (control socket is pre-authenticated).
     ///   - controlPassword: Optional password for control auth.
     ///   - extraArgs: Additional Tor arguments.
+    ///   - ownsDataDirectory: When `true`, `TorClient.stop()` removes `dataDirectory`. Defaults to `false`.
     public init(
         dataDirectory: String,
         cacheDirectory: String? = nil,
         socksPort: PortPolicy = .ephemeral,
         cookieAuthentication: Bool = false,
         controlPassword: String? = nil,
-        extraArgs: [String] = []
+        extraArgs: [String] = [],
+        ownsDataDirectory: Bool = false
     ) {
         self.dataDirectory = dataDirectory
         self.cacheDirectory = cacheDirectory
@@ -90,6 +99,7 @@ public struct TorConfiguration: Sendable {
         self.cookieAuthentication = cookieAuthentication
         self.controlPassword = controlPassword
         self.extraArgs = extraArgs
+        self.ownsDataDirectory = ownsDataDirectory
     }
     
     /// Creates a default configuration using a temporary directory.
@@ -99,6 +109,27 @@ public struct TorConfiguration: Sendable {
             .appendingPathComponent("tor-\(UUID().uuidString)")
             .path
         return TorConfiguration(dataDirectory: tempDir)
+    }
+
+    /// Creates an ephemeral configuration whose data directory is auto-cleaned on stop.
+    ///
+    /// The returned configuration uses a fresh UUID-based temp directory for
+    /// `dataDirectory` and sets `ownsDataDirectory = true` so the directory is
+    /// removed automatically when `TorClient.stop()` returns.
+    ///
+    /// - Parameter cacheDirectory: Optional persistent cache directory (consensus
+    ///   data) to retain across runs for faster re-bootstrap. Only the data
+    ///   directory is removed on stop; the cache directory is preserved.
+    /// - Returns: A configuration suitable for per-session embedded Tor usage.
+    public static func ephemeral(cacheDirectory: String? = nil) -> TorConfiguration {
+        let dataDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tor-\(UUID().uuidString)")
+            .path
+        return TorConfiguration(
+            dataDirectory: dataDir,
+            cacheDirectory: cacheDirectory,
+            ownsDataDirectory: true
+        )
     }
     
     /// Builds the command-line arguments for Tor.
