@@ -369,8 +369,18 @@ public actor TorClient {
     /// internally) and any other code sharing the process.
     private static func sanitizeFileDescriptorLimit() {
         #if !os(Windows)
+        // On Linux/Glibc, `RLIMIT_NOFILE` imports as `__rlimit_resource` (an enum),
+        // but `getrlimit`/`setrlimit` expect `__rlimit_resource_t` (Int32). On Darwin
+        // it's already Int32, so the cast is a no-op.
+        #if canImport(Glibc) || canImport(Musl)
+        // `RLIMIT_NOFILE` is imported as `__rlimit_resource` (enum); the syscalls
+        // expect `__rlimit_resource_t` which is `Int32`.
+        let resource = Int32(RLIMIT_NOFILE.rawValue)
+        #else
+        let resource = RLIMIT_NOFILE
+        #endif
         var rlim = rlimit()
-        guard getrlimit(RLIMIT_NOFILE, &rlim) == 0 else { return }
+        guard getrlimit(resource, &rlim) == 0 else { return }
         guard rlim.rlim_cur > rlim_t(Int32.max) else { return }
         // sysconf(_SC_OPEN_MAX) returns rlim_cur — already poisoned.
         // Query the actual kernel per-process file limit instead.
@@ -383,7 +393,7 @@ public actor TorClient {
         let cap: rlim_t = 10240
         #endif
         rlim.rlim_cur = cap
-        setrlimit(RLIMIT_NOFILE, &rlim)
+        setrlimit(resource, &rlim)
         #endif
     }
 }
