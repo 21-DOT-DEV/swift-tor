@@ -1,8 +1,8 @@
 # Phase 2: Remove libbsd Dependency
 
-**Status**: 🔜 Planned  
+**Status**: ✅ Complete  
 **Priority**: High  
-**Last Updated**: 2025-01-26  
+**Last Updated**: 2026-04-17  
 **Depends On**: Phase 1 (Linux Basic Support)
 
 ---
@@ -140,17 +140,31 @@ When `HAVE_STRLCPY` is undefined, `compat_string.c` directly includes the implem
 
 ## Completion Criteria
 
-- [ ] `strlcpy.c` and `strlcat.c` copied to `Sources/libtor/src/ext/`
-- [ ] `orconfig.h` updated with Linux conditionals
-- [ ] `Package.swift` has no `.unsafeFlags`
-- [ ] `Package.swift` has no `libbsd` linker setting
-- [ ] `Dockerfile` has no `libbsd-dev`
-- [ ] `docker build .` passes
-- [ ] macOS `swift test` passes
-- [ ] Package can be used as a normal SPM dependency
+- [x] `strlcpy.c` and `strlcat.c` copied to `Sources/libtor/src/ext/`
+- [x] `orconfig.h` updated with Linux conditionals
+- [x] `Package.swift` has no `.unsafeFlags`
+- [x] `Package.swift` has no `libbsd` linker setting
+- [x] `Dockerfile` has no `libbsd-dev`
+- [x] `docker build .` passes
+- [x] macOS `swift test` passes
+- [x] Package can be used as a normal SPM dependency
 
 ---
 
 ## Risk Assessment
 
 **Low Risk**: This is exactly how tor upstream handles platforms without strlcpy/strlcat. The implementation files are well-tested OpenBSD code (BSD licensed, compatible with MIT).
+
+---
+
+## Completion Note (2026-04-17)
+
+All criteria verified against codebase:
+
+- `Sources/libtor/src/ext/strlcpy.c` and `strlcat.c` present; excluded from the compile graph at `Package.swift:37-38` (inline-included by `compat_string.c`).
+- `Sources/libtor/include/orconfig.h:546-560` contains `#undef HAVE_STRLCPY / HAVE_STRLCAT` guarded by `defined(__linux__)`.
+- `Package.swift` has no `.linkedLibrary("bsd")` and no `-include bsd/string.h` unsafeFlags.
+- `Dockerfile:3-9` installs only `ca-certificates`, `git`, `pkg-config`, `zlib1g-dev` — no `libbsd-dev`.
+- The only remaining Linux-specific define is `_GNU_SOURCE` (for `memmem`) at `Package.swift:57`, as intended.
+
+See `.specify/memory/roadmap.md` Completion Audit for the full evidence trail.

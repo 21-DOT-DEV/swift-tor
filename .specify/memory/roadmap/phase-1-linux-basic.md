@@ -1,8 +1,8 @@
 # Phase 1: Linux Basic Support
 
-**Status**: 🔄 In Progress  
+**Status**: ✅ Complete  
 **Priority**: High  
-**Last Updated**: 2025-01-26
+**Last Updated**: 2026-04-17
 
 ---
 
@@ -93,11 +93,13 @@ Linux build now passes with the following workarounds:
 - [x] `docker build .` passes
 - [x] `swift build` passes in container
 - [x] `swift test` passes in container
-- [ ] Remove `libbsd` dependency (Phase 2)
-- [ ] CI workflow added (Phase 3)
+- [x] Remove `libbsd` dependency — shipped in **Phase 2**
+- [x] CI workflow added — shipped in **Phase 4** (`apple-builds.yml`, `docker-builds.yml`)
 
 ---
 
-## Next Steps
+## Completion Note (2026-04-17)
 
-→ **Phase 2**: Remove libbsd dependency by using tor's internal strlcpy/strlcat
+Phase 1 shipped Linux buildability using `swift:6.1-jammy` with a transient `libbsd` workaround. That workaround was subsequently eliminated in Phase 2 (`Sources/libtor/src/ext/strlcpy.c` + `strlcat.c` copied in; `orconfig.h` Linux conditionals; `libbsd-dev` removed from `Dockerfile`). Continuous Linux coverage landed in Phase 4 via `.github/workflows/docker-builds.yml`.
+
+Verified against codebase 2026-04-17 (Round 3 audit). See `.specify/memory/roadmap.md` Completion Audit for evidence trail.
