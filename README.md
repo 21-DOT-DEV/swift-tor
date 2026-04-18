@@ -1,6 +1,22 @@
+[![Apple Platforms](https://github.com/21-DOT-DEV/swift-tor/actions/workflows/apple-builds.yml/badge.svg)](https://github.com/21-DOT-DEV/swift-tor/actions/workflows/apple-builds.yml) [![Docker Builds](https://github.com/21-DOT-DEV/swift-tor/actions/workflows/docker-builds.yml/badge.svg)](https://github.com/21-DOT-DEV/swift-tor/actions/workflows/docker-builds.yml) [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Swift Versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2F21-DOT-DEV%2Fswift-tor%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/21-DOT-DEV/swift-tor) [![Platforms](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2F21-DOT-DEV%2Fswift-tor%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/21-DOT-DEV/swift-tor)
+
 # swift-tor
  
  Swift package that embeds Tor (`libtor`) and provides a Swift-concurrency-first API (`TorClient`), plus Tor control protocol utilities (including ephemeral onion service management).
+
+## Contents
+
+- [Features](#features)
+- [Platforms](#platforms)
+- [Installation](#installation)
+- [Quick Start (Basic)](#quick-start-basic)
+- [Creating a Hidden Service](#creating-a-hidden-service)
+- [Demo](#demo)
+- [Testing](#testing)
+- [Roadmap](#roadmap)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
  
  ## Features
  
@@ -37,7 +53,10 @@
  ```swift
  .package(url: "https://github.com/21-DOT-DEV/swift-tor", from: "0.1.0"),
  ```
- 
+
+> [!WARNING]  
+> This package is pre-1.0 ([SemVer major version zero](https://semver.org/#spec-item-4)). The public API is not stable and may change with any release. Pin a version using `exact:` to avoid unexpected breaking changes.
+
  Then add `Tor` as a dependency:
  
  ```swift
@@ -199,11 +218,17 @@ let restoredService = try await control.addOnion(
  
 See [roadmap.md](.specify/memory/roadmap.md) for full details.
  
- ## Security & Privacy
+ ## Security
+
+For information on reporting security vulnerabilities in swift-tor, see [SECURITY.md](SECURITY.md). For other 21-DOT-DEV projects, see the [organization Security Policy](https://github.com/21-DOT-DEV/.github/blob/main/SECURITY.md).
 
 > [!CAUTION]  
-> Tor can't "fix" unsafe application behavior. Review the [Tor Project guidance](https://support.torproject.org/) on staying anonymous. Avoid logging sensitive information (credentials, onion private keys). Consider your threat model—Tor integration is only one part of privacy/security.
- 
+> Tor can't "fix" unsafe application behavior. Review the [Tor Project guidance](https://support.torproject.org/) on staying anonymous. Avoid logging sensitive information (credentials, onion private keys). Consider your threat model — Tor integration is only one part of privacy/security.
+
+ ## Contributing
+
+Contributions welcome! Please read the [21-DOT-DEV contributing guidelines](https://github.com/21-DOT-DEV/.github/blob/main/CONTRIBUTING.md) for general workflow. For swift-tor specific guidance and AI-assisted development, see [AGENTS.md](AGENTS.md).
+
  ## License
  
  This project is licensed under the MIT License. See `LICENSE`.

@@ -20,10 +20,9 @@ let package = Package(
         .library(name: "Tor", targets: ["Tor"])
     ],
     dependencies: [
-        .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13"),
         .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", branch: "main"),
         .package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
-    ],
+    ] + Package.Dependency.developmentDependencies,
     targets: [
         .target(
             name: "libtor",
@@ -76,3 +75,16 @@ let package = Package(
     ],
     swiftLanguageModes: [.v6]
 )
+
+extension Package.Dependency {
+    /// Development-only dependencies, excluded at tagged releases.
+    ///
+    /// When resolved at a tagged release, development tools (plugins, formatters, etc.)
+    /// are excluded so consumers aren't forced to download them.
+    static var developmentDependencies: [Package.Dependency] {
+        guard Context.gitInformation?.currentTag == nil else { return [] }
+        return [
+            .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13"),
+        ]
+    }
+}

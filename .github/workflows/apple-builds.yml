@@ -6,24 +6,31 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   macos:
     name: macOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions: {}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build and test
         run: swift test
 
   ios:
     name: iOS
-    runs-on: macos-15
+    runs-on: macos-26
+    permissions: {}
+    env:
+      SCHEME: swift-tor-Package
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build for iOS
         run: |
           xcrun xcodebuild \
+            -skipMacroValidation \
             -skipPackagePluginValidation \
             build \
-            -scheme swift-tor-Package \
+            -scheme "$SCHEME" \
             -destination generic/platform=iOS

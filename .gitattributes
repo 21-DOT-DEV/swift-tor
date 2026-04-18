@@ -35,6 +35,7 @@ subtree.yaml                export-ignore
 
 # Git and editor files
 .gitignore                  export-ignore
+.gitmodules                 export-ignore
 .DS_Store                   export-ignore
 
 # Package lockfile (not needed for library consumers)
