@@ -12,7 +12,8 @@ jobs:
   linux:
     name: Linux
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Build and test

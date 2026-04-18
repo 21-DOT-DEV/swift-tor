@@ -12,7 +12,8 @@ jobs:
   macos:
     name: macOS
     runs-on: macos-26
-    permissions: {}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Build and test
@@ -21,7 +22,8 @@ jobs:
   ios:
     name: iOS
     runs-on: macos-26
-    permissions: {}
+    permissions:
+      contents: read
     env:
       SCHEME: swift-tor-Package
     steps:
