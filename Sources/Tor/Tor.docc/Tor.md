@@ -47,13 +47,14 @@ Onion-service private keys are surfaced through ``OnionService/privateKey`` as p
 ### Essentials
 
 - <doc:GettingStarted>
+- <doc:ProductionConsiderations>
 - ``TorClient``
 - ``TorSession``
 - ``TorConfiguration``
 
 ### Control protocol
 
-- <doc:ControlProtocol>
+- <doc:ControlProtocolGuide>
 - ``TorControlClient``
 - ``ControlSocket``
 - ``ControlReply``
@@ -61,7 +62,6 @@ Onion-service private keys are surfaced through ``OnionService/privateKey`` as p
 
 ### Onion services
 
-- <doc:OnionServices>
 - ``OnionService``
 - ``OnionKeySpec``
 - ``OnionPortMapping``

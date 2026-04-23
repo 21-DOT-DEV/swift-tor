@@ -3,7 +3,7 @@ import Foundation
 import Tor
 
 @main
-struct BasicTorClient {
+struct BasicClient {
     static func main() async throws {
         try await run()
     }

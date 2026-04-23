@@ -3,7 +3,7 @@ import Foundation
 import Tor
 
 @main
-struct URLSessionViaTor {
+struct URLSessionOverTor {
     static func main() async throws {
         try await run()
     }

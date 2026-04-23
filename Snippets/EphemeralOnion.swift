@@ -3,7 +3,7 @@ import Foundation
 import Tor
 
 @main
-struct EphemeralOnionService {
+struct EphemeralOnion {
     static func main() async throws {
         try await run()
     }
