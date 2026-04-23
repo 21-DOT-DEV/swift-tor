@@ -1,6 +1,6 @@
 # AGENTS.md (swift-tor)
 
-A Swift 6.1 wrapper around the Tor daemon (`libtor`) providing a Swift-concurrency-first API (`TorClient`) and Tor control protocol utilities. Supports macOS 13+, iOS 16+, and Linux (Ubuntu 22.04+). Does NOT support tvOS/watchOS/visionOS: Tor's codebase relies on UNIX process primitives (`fork`, `execve`, `daemon`, `setuid`) prohibited by Apple on those platforms.
+A Swift 6.1 wrapper around the Tor daemon (`libtor`) providing a Swift-concurrency-first API (`TorClient`) and Tor control protocol utilities. Supports macOS 15+, iOS 18+, and Linux (Ubuntu 22.04+). The iOS 18 / macOS 15 floor is required by `Synchronization.Mutex` (SE-0410), which underpins `ControlSocket` and `TorControlClient`'s `Sendable` conformance. Does NOT support tvOS/watchOS/visionOS: Tor's codebase relies on UNIX process primitives (`fork`, `execve`, `daemon`, `setuid`) prohibited by Apple on those platforms.
 
 ## Commands
 

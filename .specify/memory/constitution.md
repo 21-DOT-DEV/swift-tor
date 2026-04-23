@@ -252,9 +252,13 @@ prevents recurring discussion of Apple platforms on which Tor cannot run at all.
 
 **Practices - Platform scope**:
 - **MUST** support and exercise in CI:
-  - macOS 13+ (build and deterministic tests)
-  - iOS 16+ (build)
+  - macOS 15+ (build and deterministic tests)
+  - iOS 18+ (build)
   - Linux (Ubuntu 22.04+, build and deterministic tests)
+- **Platform floor rationale**: the macOS 15 / iOS 18 minimum is required by
+  `Synchronization.Mutex` (SE-0410), which underpins the compiler-verified
+  `Sendable` conformance of `ControlSocket` and `TorControlClient`. Lowering
+  the floor would require reverting to `@unchecked Sendable` escape hatches.
 - **MUST NOT** add support for **tvOS, watchOS, or visionOS**. Tor's source depends
   on UNIX process primitives (`fork`, `execve`, `daemon`, `setuid`) that Apple
   prohibits on those platforms, and the prohibition is enforced at App Store review.
@@ -480,11 +484,20 @@ control-protocol surface require additional scrutiny:
 
 ## Version History
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Ratified**: 2026-04-17
-**Last Amended**: 2026-04-17
+**Last Amended**: 2026-04-23
 
 **Changelog**:
+- **1.1.0** (2026-04-23): **MINOR amendment** — Principle VI platform floor
+  raised from macOS 13+ / iOS 16+ to macOS 15+ / iOS 18+. Justification:
+  `Synchronization.Mutex` (SE-0410) is required for compiler-verified
+  `Sendable` conformance of `ControlSocket` and `TorControlClient`, replacing
+  the prior `@unchecked Sendable` + `NSLock` pattern and a hand-rolled
+  `ManagedAtomic<Bool>` helper. The minimum iOS 18 / macOS 15 deployment is
+  the prerequisite. Linux (Ubuntu 22.04+) unaffected. tvOS/watchOS/visionOS
+  MUST-NOT line preserved. Pre-1.0 package with no public release tags so no
+  existing consumers are affected by the floor raise.
 - **1.0.0** (2026-04-17): Initial constitution. Seven core principles, narrow
   threat-model framing, runtime-dependency allowlist, best-effort upstream
   tracking, two-tier test determinism, normative platform scope, pre-1.0 stability
@@ -506,4 +519,4 @@ This constitution organizes Tor-ecosystem concerns as follows:
 - Vulnerability disclosure, Tor Project coordination → **Implementation Guidance**
 - Stability posture, amendment process, enforcement tiers → **Governance**
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-17 | **Last Amended**: 2026-04-17
+**Version**: 1.1.0 | **Ratified**: 2026-04-17 | **Last Amended**: 2026-04-23

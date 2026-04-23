@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import Synchronization
 
 #if canImport(Darwin)
 import Darwin
@@ -18,56 +19,144 @@ import Glibc
 import WinSDK
 #endif
 
-/// A cross-platform wrapper for control socket I/O.
+/// Cross-platform, `Sendable` line-oriented wrapper around a Tor control
+/// socket file descriptor.
 ///
-/// This class provides line-oriented read/write operations for the Tor control protocol,
-/// which uses CRLF-terminated lines.
+/// `ControlSocket` is the POSIX-level plumbing that sits under
+/// ``TorControlClient``. It provides the three operations the
+/// control protocol demands (control-spec.txt §2): write a
+/// CRLF-terminated command line, read back a CRLF-terminated reply
+/// line, and assemble multi-line (`250-`, `250+`, `650+`) replies into a
+/// single `[String]`. The underlying FD is either the pre-authenticated
+/// socket from `tor_main_configuration_setup_control_socket()` (embedded
+/// mode) or a freshly-opened TCP connection to a listening `ControlPort`.
 ///
-/// The socket can be either:
-/// - A file descriptor from `tor_main_configuration_setup_control_socket()`
-/// - A TCP connection to a control port
+/// Platform plumbing is abstracted across Darwin (`Darwin`), Linux
+/// (`Glibc`, `Musl`), and Windows (`WinSDK`) via `#if canImport(…)`
+/// guards. Sockets are configured with `SO_RCVTIMEO` so blocking `recv`
+/// calls honour ``readTimeout`` without requiring a polling loop.
 ///
-/// - Note: This class is `@unchecked Sendable` because the underlying file descriptor
-///   operations are thread-safe when properly synchronized at a higher level.
-public final class ControlSocket: @unchecked Sendable {
-    
+/// - Note: Conformance is `Sendable` (compiler-verified, no `@unchecked`).
+///   All mutable state lives inside a `Mutex<State>` from the
+///   `Synchronization` module (SE-0410); callers may share instances
+///   across concurrency domains and call methods concurrently — each
+///   operation acquires the mutex for its own critical section.
+/// - Important: The `deinit` calls `close(2)` (or `closesocket()` on
+///   Windows) **only** when ``init(fileDescriptor:ownsDescriptor:)`` was
+///   invoked with `ownsDescriptor: true`. Embedded control sockets from
+///   `tor_api` are owned by Tor; swift-tor must not close them.
+///
+/// ## Topics
+///
+/// ### Creating
+/// - ``init(fileDescriptor:ownsDescriptor:)``
+/// - ``init(host:port:)``
+/// - ``init(endpoint:)``
+///
+/// ### I/O
+/// - ``writeLine(_:)``
+/// - ``writeData(_:)``
+/// - ``readLine()``
+/// - ``readReply()``
+/// - ``sendCommand(_:)``
+/// - ``readLineAsync()``
+///
+/// ### State
+/// - ``readTimeout``
+/// - ``isValid``
+public final class ControlSocket: Sendable {
+
+    /// Combined mutable state serialised by the `Mutex` below.
+    private struct State {
+        /// Read buffer for accumulating partial lines.
+        var readBuffer: Data = Data()
+        /// Read timeout in seconds.
+        var readTimeout: TimeInterval = 30.0
+    }
+
     /// The underlying socket file descriptor.
     private let fd: Int32
-    
+
     /// Whether this socket owns the file descriptor and should close it on deinit.
     private let ownsDescriptor: Bool
+
+    /// Mutex-guarded mutable state. Replaces the previous `NSLock` + stored
+    /// properties pair and enables compiler-verified `Sendable` conformance.
+    private let state = Mutex<State>(State())
+
+    /// Read timeout in seconds, applied to every ``readLine()`` call.
+    ///
+    /// When an in-flight `readLine()` has been waiting longer than this
+    /// bound, it throws ``TorError/timeout``. Mutations race-safely with
+    /// concurrent reads because both getter and setter acquire the
+    /// internal `Mutex<State>`.
+    ///
+    /// - Stability: mutable at any time. The new value takes effect on
+    ///   the **next** `setSocketTimeout` call inside the `readLine()`
+    ///   polling loop (i.e., within one iteration, typically under
+    ///   1 second). Default is `30.0` seconds.
+    /// - Typical values: `30.0` for interactive use, `5.0` for tight CI
+    ///   deadlines, `120.0` or more during bootstrap when slow consensus
+    ///   downloads may delay the first reply.
+    public var readTimeout: TimeInterval {
+        get { state.withLock { $0.readTimeout } }
+        set { state.withLock { $0.readTimeout = newValue } }
+    }
     
-    /// Read buffer for accumulating partial lines.
-    private var readBuffer: Data = Data()
-    
-    /// Lock for thread-safe buffer access.
-    private let lock = NSLock()
-    
-    /// Default read timeout in seconds.
-    public var readTimeout: TimeInterval = 30.0
-    
-    /// Creates a control socket from an existing file descriptor.
+    /// Wrap an already-open file descriptor.
+    ///
+    /// Primary embedded-mode entry point. Swift-tor passes the FD
+    /// returned by `tor_main_configuration_setup_control_socket()` with
+    /// `ownsDescriptor: false`, so Tor retains ownership. External
+    /// callers that `socket(2)`'d and `connect(2)`'d a descriptor
+    /// themselves should pass `ownsDescriptor: true` so `deinit` closes
+    /// the FD when the wrapper drops.
+    ///
     /// - Parameters:
-    ///   - fileDescriptor: The socket file descriptor.
-    ///   - ownsDescriptor: If true, the socket will close the descriptor on deinit.
+    ///   - fileDescriptor: A valid, connected socket FD.
+    ///   - ownsDescriptor: Whether `deinit` should close the FD.
+    ///     Defaults to `false`.
+    ///
+    /// - Important: Passing `fileDescriptor: -1` creates an
+    ///   invalid-but-constructible instance — ``isValid`` returns `false`
+    ///   and every read/write throws ``TorError/ioError(_:)``. Useful
+    ///   for placeholder/tests only.
     public init(fileDescriptor: Int32, ownsDescriptor: Bool = false) {
         self.fd = fileDescriptor
         self.ownsDescriptor = ownsDescriptor
     }
     
-    /// Creates a control socket by connecting to a TCP endpoint.
+    /// Open a TCP connection to a control port and wrap it.
+    ///
+    /// Synchronously `socket(2)` + `connect(2)` to `host:port`, then
+    /// take ownership of the resulting FD. DNS resolution uses
+    /// `gethostbyname(3)` as a fallback when `inet_pton` can't parse
+    /// `host` as an IPv4 literal. On success the returned `ControlSocket`
+    /// is connected but **not** authenticated — callers must then go
+    /// through the `AUTHENTICATE` handshake via ``TorControlClient``.
+    ///
     /// - Parameters:
-    ///   - host: The host to connect to.
-    ///   - port: The port to connect to.
-    /// - Throws: `TorError.ioError` if the connection fails.
+    ///   - host: IPv4 literal or DNS name of the control port host.
+    ///   - port: TCP port (typically 9051 for Tor's default ControlPort).
+    /// - Throws: ``TorError/ioError(_:)`` on socket/connect failure, DNS
+    ///   resolution failure, or `WSAStartup` failure on Windows.
+    ///
+    /// - Note: Ownership is implicit — the wrapper always closes the FD
+    ///   on `deinit`. Use ``init(fileDescriptor:ownsDescriptor:)`` when
+    ///   finer ownership control is required.
     public convenience init(host: String, port: Int) throws {
         let fd = try Self.connectTCP(host: host, port: port)
         self.init(fileDescriptor: fd, ownsDescriptor: true)
     }
     
-    /// Creates a control socket by connecting to a `HostPort` endpoint.
-    /// - Parameter endpoint: The endpoint to connect to.
-    /// - Throws: `TorError.ioError` if the connection fails.
+    /// Open a TCP connection to a typed ``HostPort`` endpoint.
+    ///
+    /// Thin wrapper around ``init(host:port:)`` that accepts the typed
+    /// endpoint value swift-tor uses throughout its public API. Prefer
+    /// this overload at API boundaries so host/port stay paired.
+    ///
+    /// - Parameter endpoint: The control port endpoint.
+    /// - Throws: ``TorError/ioError(_:)`` on connection failure.
     public convenience init(endpoint: HostPort) throws {
         try self.init(host: endpoint.host, port: endpoint.port)
     }
@@ -82,24 +171,58 @@ public final class ControlSocket: @unchecked Sendable {
         }
     }
     
-    /// Whether the socket is valid.
+    /// `true` if the wrapped FD is non-negative, i.e. structurally valid.
+    ///
+    /// Does **not** prove the peer is reachable or the TCP session is
+    /// live — only that the wrapper was not constructed with a sentinel
+    /// `-1` and that the socket has not been manually marked invalid.
+    /// Liveness must be established by actually issuing a `readLine()`
+    /// or `writeLine()`.
+    ///
+    /// - Returns: `true` when `fd >= 0`, else `false`.
     public var isValid: Bool {
         fd >= 0
     }
     
     // MARK: - Writing
     
-    /// Sends a command line to the control socket.
-    /// - Parameter line: The command to send (without CRLF terminator).
-    /// - Throws: `TorError.ioError` if the write fails.
+    /// Send a single protocol command line.
+    ///
+    /// Appends `\r\n` to `line` per control-spec.txt §2 (line framing)
+    /// and forwards the bytes to ``writeData(_:)``. The caller passes
+    /// the command body without the CRLF terminator —
+    /// `"GETINFO version"`, `"SIGNAL NEWNYM"`, etc.
+    ///
+    /// - Parameter line: The command, **without** the CRLF terminator.
+    /// - Throws: ``TorError/ioError(_:)`` on `send(2)` failure or a
+    ///   closed socket.
+    ///
+    /// - Important: Commands must not themselves contain raw CR or LF
+    ///   bytes — the protocol has no quoting beyond CRLF line framing,
+    ///   and embedded separators will be interpreted as command
+    ///   boundaries by Tor.
     public func writeLine(_ line: String) throws {
         let data = (line + "\r\n").data(using: .utf8)!
         try writeData(data)
     }
     
-    /// Sends raw data to the control socket.
-    /// - Parameter data: The data to send.
-    /// - Throws: `TorError.ioError` if the write fails.
+    /// Send a raw byte payload, looping until every byte is written.
+    /// 
+    /// Low-level counterpart to ``writeLine(_:)``. Called when the
+    /// caller needs to ship a pre-assembled payload (multi-line
+    /// commands, binary-safe extensions). Loops over `send(2)` until
+    /// the full `data` has been drained, handling short writes
+    /// transparently.
+    ///
+    /// - Parameter data: The bytes to write verbatim.
+    /// - Throws: ``TorError/ioError(_:)`` if the FD is closed or any
+    ///   `send(2)` returns `-1`.
+    ///
+    /// - Important: Partial writes are **not** reported to the caller —
+    ///   swift-tor retries transparently. If `send(2)` fails mid-
+    ///   payload the caller must treat the socket as compromised and
+    ///   abandon it; the Tor peer has consumed an unknown prefix of
+    ///   the intended command.
     public func writeData(_ data: Data) throws {
         guard fd >= 0 else {
             throw TorError.ioError("Socket is closed")
@@ -129,63 +252,95 @@ public final class ControlSocket: @unchecked Sendable {
     
     // MARK: - Reading
     
-    /// Reads a single line from the control socket.
-    /// - Returns: The line without the CRLF terminator.
-    /// - Throws: `TorError.ioError` if the read fails, `TorError.timeout` if the read times out.
+    /// Read one CRLF-terminated line, buffering residual bytes for the
+    /// next call.
+    ///
+    /// The core read primitive. Performs a bounded `recv(2)` loop with
+    /// `SO_RCVTIMEO` set to the smaller of 1 second or the remaining
+    /// budget, appending to an internal buffer until a CRLF is found
+    /// (per control-spec.txt §2 line framing). Anything after the CRLF
+    /// is retained for the next invocation, so multiple lines read in
+    /// one syscall are surfaced correctly.
+    ///
+    /// Acquires the `Mutex<State>` for the full duration of the call.
+    /// Concurrent `readLine()` / `readReply()` callers are serialised;
+    /// the later caller blocks until the earlier one returns.
+    ///
+    /// - Returns: The line body **without** the trailing CRLF.
+    /// - Throws: ``TorError/ioError(_:)`` on `recv(2)` failure or if
+    ///   the peer closed the connection; ``TorError/timeout`` when
+    ///   ``readTimeout`` elapses before a CRLF is seen.
+    ///
+    /// - Note: `EAGAIN`, `EWOULDBLOCK`, and `EINTR` are retried
+    ///   transparently inside the timeout budget; callers only see
+    ///   hard failures.
     public func readLine() throws -> String {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        // Check if we already have a complete line in the buffer
-        if let line = extractLine() {
-            return line
-        }
-        
-        // Read more data until we have a complete line
-        let deadline = Date().addingTimeInterval(readTimeout)
-        var tempBuffer = [UInt8](repeating: 0, count: 4096)
-        
-        while Date() < deadline {
-            // Set read timeout on socket
-            setSocketTimeout(seconds: min(1.0, deadline.timeIntervalSinceNow))
-            
-            #if os(Windows)
-            let bytesRead = WinSDK.recv(fd, &tempBuffer, Int32(tempBuffer.count), 0)
-            #else
-            let bytesRead = recv(fd, &tempBuffer, tempBuffer.count, 0)
-            #endif
-            
-            if bytesRead < 0 {
-                #if os(Windows)
-                let err = WSAGetLastError()
-                if err == WSAETIMEDOUT || err == WSAEWOULDBLOCK {
-                    continue
-                }
-                #else
-                if errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR {
-                    continue
-                }
-                #endif
-                throw TorError.ioError("Read failed: \(Self.lastErrorMessage())")
-            }
-            
-            if bytesRead == 0 {
-                throw TorError.ioError("Connection closed")
-            }
-            
-            readBuffer.append(contentsOf: tempBuffer[0..<Int(bytesRead)])
-            
-            if let line = extractLine() {
+        try state.withLock { state in
+            // Check if we already have a complete line in the buffer
+            if let line = Self.extractLine(from: &state.readBuffer) {
                 return line
             }
+
+            // Read more data until we have a complete line
+            let deadline = Date().addingTimeInterval(state.readTimeout)
+            var tempBuffer = [UInt8](repeating: 0, count: 4096)
+
+            while Date() < deadline {
+                // Set read timeout on socket
+                setSocketTimeout(seconds: min(1.0, deadline.timeIntervalSinceNow))
+
+                #if os(Windows)
+                let bytesRead = WinSDK.recv(fd, &tempBuffer, Int32(tempBuffer.count), 0)
+                #else
+                let bytesRead = recv(fd, &tempBuffer, tempBuffer.count, 0)
+                #endif
+
+                if bytesRead < 0 {
+                    #if os(Windows)
+                    let err = WSAGetLastError()
+                    if err == WSAETIMEDOUT || err == WSAEWOULDBLOCK {
+                        continue
+                    }
+                    #else
+                    if errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR {
+                        continue
+                    }
+                    #endif
+                    throw TorError.ioError("Read failed: \(Self.lastErrorMessage())")
+                }
+
+                if bytesRead == 0 {
+                    throw TorError.ioError("Connection closed")
+                }
+
+                state.readBuffer.append(contentsOf: tempBuffer[0..<Int(bytesRead)])
+
+                if let line = Self.extractLine(from: &state.readBuffer) {
+                    return line
+                }
+            }
+
+            throw TorError.timeout
         }
-        
-        throw TorError.timeout
     }
     
-    /// Reads a complete control protocol reply (may be multi-line).
-    /// - Returns: Array of raw lines (including status codes).
-    /// - Throws: `TorError` on read failure.
+    /// Read a complete control-protocol reply as an ordered `[String]`.
+    ///
+    /// Assembles one or more ``readLine()`` results into a full reply
+    /// by interpreting the fourth byte of each line per
+    /// control-spec.txt §2.3: `' '` terminates, `-` continues the
+    /// status, and `+` opens a data block terminated by a sole `.`.
+    /// Callers receive every raw line (including status-code prefixes)
+    /// so downstream ``ControlProtocolParser`` can classify them.
+    ///
+    /// - Returns: The raw reply lines in receive order. Always
+    ///   non-empty in the success path.
+    /// - Throws: ``TorError/ioError(_:)`` or ``TorError/timeout``
+    ///   propagated from ``readLine()``.
+    ///
+    /// - Important: The function does **not** classify the status code
+    ///   as success or failure. Pass the returned lines to
+    ///   ``ControlProtocolParser/parseReply(_:)`` for that.
     public func readReply() throws -> [String] {
         var lines: [String] = []
         var inDataBlock = false
@@ -237,15 +392,18 @@ public final class ControlSocket: @unchecked Sendable {
     
     // MARK: - Private Helpers
     
-    /// Extracts a complete CRLF-terminated line from the read buffer.
-    private func extractLine() -> String? {
-        guard let crlfRange = readBuffer.range(of: Data([0x0D, 0x0A])) else {
+    /// Extracts a complete CRLF-terminated line from the given read buffer.
+    ///
+    /// Static helper invoked inside `state.withLock { … }` closures where the
+    /// buffer is available as a mutable reference to the Mutex-guarded state.
+    private static func extractLine(from buffer: inout Data) -> String? {
+        guard let crlfRange = buffer.range(of: Data([0x0D, 0x0A])) else {
             return nil
         }
-        
-        let lineData = readBuffer[..<crlfRange.lowerBound]
-        readBuffer.removeSubrange(..<crlfRange.upperBound)
-        
+
+        let lineData = buffer[..<crlfRange.lowerBound]
+        buffer.removeSubrange(..<crlfRange.upperBound)
+
         return String(data: Data(lineData), encoding: .utf8)
     }
     
@@ -338,9 +496,25 @@ public final class ControlSocket: @unchecked Sendable {
 
 extension ControlSocket {
     
-    /// Sends a command and reads the reply asynchronously.
-    /// - Parameter command: The command to send (without CRLF).
-    /// - Returns: The parsed control reply.
+    /// Send a command and return the parsed reply.
+    ///
+    /// The primary high-level I/O entry point. Internally:
+    /// 1. Hops to a global-queue background thread via
+    ///    `DispatchQueue.global(qos: .userInitiated)` so the blocking
+    ///    ``writeLine(_:)`` + ``readReply()`` pair does not occupy a
+    ///    Swift Concurrency cooperative thread.
+    /// 2. Runs the write, the read-reply, and the
+    ///    ``ControlProtocolParser/parseReply(_:)`` classification.
+    /// 3. Bridges back via a `CheckedContinuation`.
+    ///
+    /// - Parameter command: The command body **without** CRLF.
+    /// - Returns: A parsed ``ControlReply``.
+    /// - Throws: ``TorError/ioError(_:)``, ``TorError/timeout``, or
+    ///   ``TorError/invalidResponse(_:)`` if parsing fails.
+    ///
+    /// - Note: Commands execute in the order they arrive at this
+    ///   method — concurrent callers are serialised by the internal
+    ///   `Mutex<State>` on both the write and read paths.
     public func sendCommand(_ command: String) async throws -> ControlReply {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -356,8 +530,16 @@ extension ControlSocket {
         }
     }
     
-    /// Reads a line asynchronously.
-    /// - Returns: The line without CRLF terminator.
+    /// `readLine()` hoisted off the cooperative thread pool.
+    ///
+    /// Thin async wrapper that executes ``readLine()`` on a global
+    /// dispatch queue and resumes a `CheckedContinuation` with the
+    /// result. Intended for callers that need to consume async event
+    /// streams (`650`-status lines) without blocking Swift Concurrency.
+    ///
+    /// - Returns: The line body without the trailing CRLF.
+    /// - Throws: ``TorError/ioError(_:)`` or ``TorError/timeout``
+    ///   propagated from ``readLine()``.
     public func readLineAsync() async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
