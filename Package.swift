@@ -12,16 +12,16 @@ import PackageDescription
 let package = Package(
     name: "swift-tor",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16)
+        .macOS(.v15),
+        .iOS(.v18)
     ],
     products: [
         .library(name: "libtor", targets: ["libtor"]),
         .library(name: "Tor", targets: ["Tor"])
     ],
     dependencies: [
-        .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", branch: "main"),
-        .package(url: "https://github.com/21-DOT-DEV/swift-event.git", branch: "main"),
+        .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", exact: "0.1.3"),
+        .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.1.3"),
     ] + Package.Dependency.developmentDependencies,
     targets: [
         .target(
@@ -85,6 +85,7 @@ extension Package.Dependency {
         guard Context.gitInformation?.currentTag == nil else { return [] }
         return [
             .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13"),
+            .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.6"),
         ]
     }
 }

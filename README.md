@@ -29,8 +29,8 @@
  
  ## Platforms
  
- - **macOS**: 13+
- - **iOS**: 16+
+ - **macOS**: 15+
+ - **iOS**: 18+
  - **Linux**: Ubuntu 22.04+ (via Docker)
  
 > [!IMPORTANT]  

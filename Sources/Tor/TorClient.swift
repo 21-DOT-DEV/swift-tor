@@ -11,45 +11,105 @@
 import Foundation
 import libtor
 
-/// Main actor for managing an embedded Tor instance.
+/// Actor-isolated driver for a single embedded Tor instance.
 ///
-/// `TorClient` provides a high-level Swift Concurrency interface for:
-/// - Starting and stopping Tor
-/// - Monitoring bootstrap progress
-/// - Accessing the SOCKS proxy endpoint
-/// - Managing the control connection
+/// `TorClient` is swift-tor's primary entry point: one actor per Tor
+/// instance, strict Swift-concurrency isolation of all mutable state,
+/// and a high-level API that hides the dedicated `tor_run_main()`
+/// background thread, the embedded pre-authenticated control socket,
+/// and the `AsyncStream` fan-out of lifecycle events.
 ///
-/// ## Basic Usage
+/// ### Basic usage
 ///
 /// ```swift
-/// let config = TorConfiguration.makeDefault()
-/// let client = TorClient(configuration: config)
-///
+/// let client = TorClient(configuration: .ephemeral())
 /// try await client.start()
 /// try await client.waitUntilBootstrapped()
-///
-/// print("SOCKS: \(client.socksEndpoint!)")
-///
+/// print("SOCKS reachable at \(await client.socksEndpoint!)")
 /// let control = try await client.control()
 /// let service = try await control.addOnion(
 ///     key: .newV3(discardPrivateKey: true),
 ///     ports: [.toLocalPort(80, localPort: 8080)]
 /// )
+/// await client.stop()
 /// ```
 ///
-/// ## Thread Model
+/// ### Thread model
 ///
-/// Tor's `tor_run_main()` blocks until Tor exits. This actor runs it on a dedicated
-/// background thread, keeping the Swift concurrency runtime free for other work.
+/// Tor's C entry point `tor_run_main()` is a blocking, single-threaded
+/// event loop that runs for the lifetime of the Tor instance. `TorClient`
+/// pins that loop to a dedicated `Thread` so the Swift concurrency
+/// runtime stays free for application work; actor isolation on every
+/// mutable property (``state``, ``socksEndpoint``, the control client,
+/// the event-continuation map) serialises callers without blocking the
+/// Tor thread. Cross-thread bootstrapping happens through a
+/// `CheckedContinuation` in ``start()``.
+///
+/// - Note: Conformance is `Sendable` via actor isolation; no
+///   `@unchecked` escape hatches. Pairs with ``TorSession`` for
+///   dependency injection (see ``TorSession`` for test-double guidance).
+/// - Important: A single `TorClient` owns its `configuration.dataDirectory`
+///   for the session. Constructing two clients pointed at the same data
+///   directory will fail the second one with ``TorError/startFailed(_:)``
+///   due to Tor's lockfile.
+///
+/// ## Topics
+///
+/// ### Creating
+/// - ``init(configuration:)``
+/// - ``init()``
+///
+/// ### Lifecycle
+/// - ``start()``
+/// - ``stop()``
+/// - ``waitUntilBootstrapped(timeout:)``
+///
+/// ### Observing
+/// - ``state``
+/// - ``socksEndpoint``
+/// - ``events``
+///
+/// ### Control access
+/// - ``control()``
+/// - ``configuration``
 public actor TorClient {
     
-    /// The configuration for this Tor instance.
+    /// The immutable ``TorConfiguration`` snapshot used to start Tor.
+    ///
+    /// Captured at construction time and frozen for the life of this
+    /// actor — mutating the original ``TorConfiguration`` after
+    /// construction has no effect on a running session. To apply new
+    /// configuration, call ``stop()`` and construct a fresh `TorClient`.
+    ///
+    /// - Stability: immutable (`let`), safe to read from any task.
     public let configuration: TorConfiguration
     
-    /// The current state of Tor.
+    /// Current lifecycle state, isolated to the actor.
+    ///
+    /// Reads require `await` to cross the actor boundary; writes happen
+    /// only inside ``start()`` / ``stop()`` / ``waitUntilBootstrapped(timeout:)``
+    /// and their helpers. Observers that need near-real-time updates
+    /// without polling should consume ``events`` for
+    /// ``TorEvent/stateChanged(_:)``.
+    ///
+    /// - Stability: follows the transition graph documented on
+    ///   ``TorState``; default is ``TorState/idle``.
     public private(set) var state: TorState = .idle
     
-    /// The SOCKS proxy endpoint, available after Tor starts.
+    /// Tor's local SOCKS5 proxy endpoint once start succeeds, else `nil`.
+    ///
+    /// Populated by `discoverSocksPort()` via the `GETINFO
+    /// net/listeners/socks` control-protocol key (control-spec.txt
+    /// §3.9). Remains `nil` until Tor reaches ``TorState/running`` AND
+    /// the port discovery completes; reverts to `nil` on ``stop()``.
+    ///
+    /// - Typical value: `HostPort(host: "127.0.0.1", port: <ephemeral>)`
+    ///   when `configuration.socksPort == .ephemeral`, or the literal
+    ///   fixed port when `.fixed(n)` was requested.
+    /// - Important: Do not hand this endpoint to client code before
+    ///   ``waitUntilBootstrapped(timeout:)`` succeeds — the SOCKS listener
+    ///   is reachable immediately, but traffic will fail with
+    ///   `Proxy connection refused` until bootstrap reaches 100%.
     public private(set) var socksEndpoint: HostPort?
     
     /// The control socket file descriptor.
@@ -64,29 +124,70 @@ public actor TorClient {
     /// Event continuation for broadcasting events.
     private var eventContinuations: [UUID: AsyncStream<TorEvent>.Continuation] = [:]
     
-    /// Creates a Tor client with the specified configuration.
-    /// - Parameter configuration: The Tor configuration to use.
+    /// Create a client bound to a specific ``TorConfiguration``.
+    ///
+    /// No work is performed at construction — the Tor process is not
+    /// launched until ``start()`` is called. Keep construction cheap so
+    /// dependency-injection frameworks can wire a `TorClient` without
+    /// paying a startup cost.
+    ///
+    /// - Parameter configuration: The configuration snapshot to use.
+    ///   See ``TorConfiguration/ephemeral(cacheDirectory:)`` for a
+    ///   zero-residue default or ``TorConfiguration/init(dataDirectory:cacheDirectory:socksPort:cookieAuthentication:controlPassword:extraArgs:ownsDataDirectory:)``
+    ///   for a fully-specified configuration.
+    ///
+    /// - Note: The configuration is copied by value into ``configuration``;
+    ///   the caller's original struct is unaffected by later mutations
+    ///   to this actor.
     public init(configuration: TorConfiguration) {
         self.configuration = configuration
     }
     
-    /// Creates a Tor client with default configuration.
+    /// Convenience initialiser using ``TorConfiguration/makeDefault()``.
+    ///
+    /// Useful for one-liner demos and quick test harnesses: generates a
+    /// fresh UUID-suffixed temp `dataDirectory`, defaults SOCKS port to
+    /// ephemeral, and leaves `ownsDataDirectory` off. The resulting
+    /// session will leave state on disk after ``stop()`` — prefer
+    /// ``init(configuration:)`` with ``TorConfiguration/ephemeral(cacheDirectory:)``
+    /// for self-cleaning deployments.
+    ///
+    /// - Note: Equivalent to `TorClient(configuration: .makeDefault())`.
     public init() {
         self.configuration = TorConfiguration.makeDefault()
     }
     
     // MARK: - Lifecycle
     
-    /// Starts the Tor instance.
+    /// Start the embedded Tor process.
     ///
-    /// This method:
-    /// 1. Creates the data directory if needed
-    /// 2. Sets up the control socket
-    /// 3. Starts Tor on a dedicated background thread
-    /// 4. Waits for the control socket to be ready
+    /// Orchestrates the cross-thread dance that brings Tor up:
+    /// 1. Create ``TorConfiguration/dataDirectory`` (and parents) with
+    ///    `FileManager.createDirectory(atPath:withIntermediateDirectories:)`.
+    /// 2. Call `tor_main_configuration_new()`, stamp the configuration
+    ///    with our torrc-equivalent argv, and hand it
+    ///    `tor_main_configuration_setup_control_socket()` to obtain a
+    ///    pre-authenticated embedded control socket.
+    /// 3. Post `tor_run_main()` to a dedicated `Thread`; bridge its
+    ///    synchronous startup back to the actor with a
+    ///    `CheckedContinuation`.
+    /// 4. Bind a ``TorControlClient`` to the socket and populate
+    ///    ``socksEndpoint`` via `GETINFO net/listeners/socks`
+    ///    (control-spec.txt §3.9).
     ///
-    /// - Throws: `TorError.alreadyStarted` if Tor is already running,
-    ///           `TorError.startFailed` if Tor fails to start.
+    /// Resolves once steps 1–4 complete, at which point ``state``
+    /// advances to ``TorState/running``. Bootstrap progress is still in
+    /// flight — pair with ``waitUntilBootstrapped(timeout:)`` to block
+    /// until Tor is actually ready to carry user traffic.
+    ///
+    /// - Throws: ``TorError/alreadyStarted`` when ``state`` is
+    ///   ``TorState/starting``, ``TorState/running``, or
+    ///   ``TorState/stopping``; ``TorError/startFailed(_:)`` when
+    ///   `tor_run_main()` returns non-zero or the argv is rejected.
+    ///
+    /// - Important: This method is idempotent only for terminal states
+    ///   (``TorState/idle``, ``TorState/stopped``, ``TorState/failed(_:)``);
+    ///   double-starting while ``state`` is transient throws.
     public func start() async throws {
         switch state {
         case .idle, .stopped, .failed:
@@ -194,7 +295,33 @@ public actor TorClient {
         broadcastEvent(.stateChanged(.running))
     }
     
-    /// Stops the Tor instance gracefully.
+    /// Stop the Tor instance and release all associated resources.
+    ///
+    /// Best-effort, non-throwing: if ``state`` is already ``TorState/idle``,
+    /// ``TorState/stopped``, or ``TorState/failed(_:)`` the call is a
+    /// no-op. Otherwise, the shutdown sequence:
+    /// 1. Advances ``state`` to ``TorState/stopping`` and broadcasts a
+    ///    corresponding ``TorEvent/stateChanged(_:)``.
+    /// 2. Sends `SIGNAL SHUTDOWN` over the control socket
+    ///    (control-spec.txt §3.7) via ``TorControlClient/shutdown()``.
+    /// 3. Polls the Tor thread for up to **10 seconds** at 100 ms
+    ///    intervals, then `Thread.cancel()`s if the thread is still
+    ///    executing.
+    /// 4. Releases the control client, closes the FD, and clears
+    ///    ``socksEndpoint``.
+    /// 5. If `configuration.ownsDataDirectory` is `true`, removes the
+    ///    data directory best-effort (errors are swallowed).
+    /// 6. Advances ``state`` to ``TorState/stopped`` and finishes every
+    ///    outstanding ``events`` continuation.
+    ///
+    /// - Important: The 10 s grace window is deliberately shorter than
+    ///   Tor's default `ShutdownWaitLength` (30 s) to bound the wait on
+    ///   misbehaving Tor builds; `Thread.cancel()` after that window is
+    ///   a best-effort unwind, not a guaranteed teardown.
+    /// - Note: After resolution the `TorClient` is reusable — a
+    ///   subsequent ``start()`` re-enters ``TorState/starting`` with a
+    ///   fresh data directory when the configuration specifies an
+    ///   ephemeral path.
     public func stop() async {
         guard state == .running || state == .starting else {
             return
@@ -231,11 +358,29 @@ public actor TorClient {
         broadcastEvent(.stateChanged(.stopped))
     }
     
-    /// Waits until Tor has fully bootstrapped.
+    /// Block until Tor reports 100% bootstrap, or fail after `timeout`.
+    ///
+    /// Polls the Tor control protocol once per second using
+    /// ``TorControlClient/getBootstrapStatus()`` and emits each observed
+    /// phase as ``TorEvent/bootstrap(progress:tag:summary:)`` on
+    /// ``events``. Resolves successfully on the first reading with
+    /// `status.isComplete`; throws ``TorError/timeout`` if the
+    /// `ContinuousClock` deadline elapses first.
+    ///
+    /// Uses `ContinuousClock` rather than `Date` so the timeout is
+    /// immune to wall-clock jumps during bootstrap (DST transitions,
+    /// manual clock changes). Bootstrap progress is monotonic, so
+    /// subscribers may replace prior UI without reordering concerns.
     ///
     /// - Parameter timeout: Maximum time to wait. Defaults to 2 minutes.
-    /// - Throws: `TorError.timeout` if bootstrap doesn't complete in time,
-    ///           `TorError.notStarted` if Tor isn't running.
+    /// - Throws: ``TorError/notStarted`` when ``state`` is neither
+    ///   ``TorState/running`` nor ``TorState/starting``;
+    ///   ``TorError/controlUnavailable`` when the control client has
+    ///   not bound; ``TorError/timeout`` when the deadline elapses.
+    ///
+    /// - Note: Cold-boot bootstraps typically complete in 30–60 seconds;
+    ///   warm-cache bootstraps (see ``TorConfiguration/cacheDirectory``)
+    ///   in 5–10 seconds. Choose `timeout` with appropriate headroom.
     public func waitUntilBootstrapped(timeout: Duration = .seconds(120)) async throws {
         guard state == .running || state == .starting else {
             throw TorError.notStarted
@@ -268,10 +413,24 @@ public actor TorClient {
     
     // MARK: - Control Access
     
-    /// Gets the control client for advanced operations.
+    /// Return the ``TorControlClient`` bound to this Tor instance.
     ///
-    /// - Returns: The `TorControlClient` for this Tor instance.
-    /// - Throws: `TorError.controlUnavailable` if the control connection isn't available.
+    /// Hands out the shared, pre-authenticated control client that
+    /// swift-tor creates during ``start()``. Use it for advanced
+    /// operations the high-level API does not expose: `GETINFO` queries
+    /// beyond the curated list, raw `SETEVENTS` subscriptions, onion-
+    /// service management (``TorControlClient/addOnion(key:ports:detach:)``),
+    /// and Tor signals (`NEWNYM`, `DUMP`, etc.).
+    ///
+    /// - Returns: The shared ``TorControlClient``. The same instance is
+    ///   returned across calls for the life of the session.
+    /// - Throws: ``TorError/controlUnavailable`` when Tor is not running
+    ///   or the control socket failed to authenticate during start.
+    ///
+    /// - Important: The returned client is owned by this `TorClient`.
+    ///   Do not close its socket manually — that is handled by
+    ///   ``stop()``. Calling control commands concurrently is safe;
+    ///   commands are serialised at the socket layer.
     public func control() throws -> TorControlClient {
         guard let client = controlClient else {
             throw TorError.controlUnavailable
@@ -281,12 +440,26 @@ public actor TorClient {
     
     // MARK: - Events
     
-    /// An async stream of events from this Tor instance.
+    /// Fresh fan-out `AsyncStream` of ``TorEvent`` values.
     ///
-    /// Events include:
-    /// - Bootstrap progress updates
-    /// - State changes
-    /// - Log messages (if subscribed via control protocol)
+    /// Every access returns a new subscriber stream; swift-tor
+    /// multiplexes each yielded ``TorEvent`` to all live subscribers, so
+    /// two consumers see identical sequences. Surfaces:
+    ///
+    /// - ``TorEvent/bootstrap(progress:tag:summary:)`` as
+    ///   ``waitUntilBootstrapped(timeout:)`` polls.
+    /// - ``TorEvent/stateChanged(_:)`` on every ``state`` transition.
+    /// - ``TorEvent/log(level:message:)``, ``TorEvent/circuit(id:status:)``,
+    ///   and ``TorEvent/stream(id:status:target:)`` when the caller has
+    ///   subscribed the corresponding raw events via
+    ///   ``TorControlClient/subscribe(to:)``.
+    ///
+    /// - Important: Streams have **no replay**. Subscribers that start
+    ///   after bootstrap completion will not see prior
+    ///   ``TorEvent/bootstrap(progress:tag:summary:)`` values; read
+    ///   ``state`` for the initial snapshot when opening the iterator.
+    /// - Note: The stream completes exactly once, in ``stop()``, when
+    ///   all continuations are finished.
     public var events: AsyncStream<TorEvent> {
         AsyncStream { continuation in
             let id = UUID()
