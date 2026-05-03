@@ -20,8 +20,8 @@ let package = Package(
         .library(name: "Tor", targets: ["Tor"])
     ],
     dependencies: [
-        .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", exact: "0.1.3"),
-        .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.1.3"),
+        .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", exact: "0.1.5"),
+        .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.1.4"),
     ] + Package.Dependency.developmentDependencies,
     targets: [
         .target(
