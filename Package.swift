@@ -13,15 +13,15 @@ let package = Package(
     name: "swift-tor",
     platforms: [
         .macOS(.v15),
-        .iOS(.v18)
+        .iOS(.v18),
     ],
     products: [
         .library(name: "libtor", targets: ["libtor"]),
-        .library(name: "Tor", targets: ["Tor"])
+        .library(name: "Tor", targets: ["Tor"]),
     ],
     dependencies: [
         .package(url: "https://github.com/21-DOT-DEV/swift-openssl.git", exact: "0.1.5"),
-        .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.1.4"),
+        .package(url: "https://github.com/21-DOT-DEV/swift-event.git", exact: "0.2.1"),
     ] + Package.Dependency.developmentDependencies,
     targets: [
         .target(
@@ -33,8 +33,8 @@ let package = Package(
             ],
             exclude: [
                 "src/ext/ed25519/donna/test-internals.c",  // Included inline by ed25519_tor.c
-                "src/ext/strlcpy.c",                       // Included inline by compat_string.c
-                "src/ext/strlcat.c",                       // Included inline by compat_string.c
+                "src/ext/strlcpy.c",  // Included inline by compat_string.c
+                "src/ext/strlcat.c",  // Included inline by compat_string.c
             ],
             cSettings: [
                 .headerSearchPath("include"),
@@ -56,7 +56,7 @@ let package = Package(
                 .define("_GNU_SOURCE", .when(platforms: [.linux])),
             ],
             linkerSettings: [
-                .linkedLibrary("z"), // zlib => -lz
+                .linkedLibrary("z")  // zlib => -lz
             ]
         ),
         .target(
@@ -71,7 +71,7 @@ let package = Package(
             name: "TorDemo",
             dependencies: ["Tor", "libtor"],
             path: "Sources/TorDemo"
-        )
+        ),
     ],
     swiftLanguageModes: [.v6]
 )
@@ -84,7 +84,8 @@ extension Package.Dependency {
     static var developmentDependencies: [Package.Dependency] {
         guard Context.gitInformation?.currentTag == nil else { return [] }
         return [
-            .package(url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.13"),
+            .package(
+                url: "https://github.com/21-DOT-DEV/swift-plugin-subtree.git", exact: "0.0.15"),
             .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.6"),
         ]
     }

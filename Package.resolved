@@ -1,5 +1,5 @@
 {
-  "originHash" : "fcc73ecd9fb636b9bad74020ea9cf616729b57082ed4df94f96e4f47e2dc1371",
+  "originHash" : "b402c9e5c50dcf9c55915fde6cf2b11e60006eeb6d6f228ecfb72287a43e9172",
   "pins" : [
     {
       "identity" : "swift-artifact-parser",
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/21-DOT-DEV/swift-event.git",
       "state" : {
-        "revision" : "ba10b561e7cd072f82b90c637ed7c982fd36482d",
-        "version" : "0.1.4"
+        "revision" : "9692104e590852d8237e510fc8f69206cbd992b1",
+        "version" : "0.2.1"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/21-DOT-DEV/swift-plugin-subtree.git",
       "state" : {
-        "revision" : "0986f4f22d7a58e3f9e6798e67491e8367653d2b",
-        "version" : "0.0.13"
+        "revision" : "f5e8ef191c7f36e5bc876b713f78fab2fc6303f3",
+        "version" : "0.0.15"
       }
     }
   ],
