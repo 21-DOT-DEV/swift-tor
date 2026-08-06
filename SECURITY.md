@@ -2,7 +2,9 @@
 
 ## Reporting a Vulnerability
 
-To report a security vulnerability in swift-tor, please use [GitHub Security Advisories](https://github.com/21-DOT-DEV/swift-tor/security/advisories).
+To report a security vulnerability in swift-tor, either:
+- send an email to `security@21.dev`, or
+- use [GitHub Security Advisories](https://github.com/21-DOT-DEV/swift-tor/security/advisories).
 
 **Do not file a public issue.**
 
