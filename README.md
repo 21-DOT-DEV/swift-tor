@@ -34,7 +34,7 @@
  - **Linux**: Ubuntu 22.04+ (via Docker)
  
 > [!IMPORTANT]  
-> **tvOS/watchOS/visionOS are not supported.** Tor's codebase relies on UNIX process primitives (`fork`, `execve`, `daemon`, `setuid`) that Apple prohibits on these platforms. These restrictions are enforced at the App Store review level and would cause runtime crashes.
+> **tvOS/watchOS are not supported.** Tor's codebase relies on UNIX process primitives (`fork`, `execve`, `daemon`, `setuid`) that Apple prohibits on these platforms. These restrictions are enforced at the App Store review level and would cause runtime crashes.
  
  ## Installation
  
